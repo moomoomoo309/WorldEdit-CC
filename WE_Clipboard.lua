@@ -218,6 +218,7 @@ function clipboard.paste(beingReused) --Pastes the current clipboard
     local flags = { none = 0, a = 1, ao = 2, both = 3 } --a means without pasting air blocks, ao means At Origin, at the origin of the paste (Where it was copied from).
     local args = flags.none
     if not beingReused then
+        px,py,pz = getPlayerPos()
         if #normalArgs > 2 then
             sendChat "Syntax: paste [-a] [-ao]"
             return false

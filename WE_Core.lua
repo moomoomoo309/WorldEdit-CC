@@ -203,7 +203,7 @@ local function resetPos(tbl) --Resets pos to the given value, resetting its meta
                     Selection = makeCuboidSelection()
                 elseif Selection.type == "poly" and poly then
                     Selection = makePolySelection()
-                elseif Selection.type == "ellipse" and ellipse then --Might as well put it here for later.
+                elseif Selection.type == "ellipse" and ellipse then
                     Selection = makeEllipseSelection()
                 end
             end
@@ -400,7 +400,7 @@ local function getPlayerPositionAndLooking(playerName) --Returns the position, p
     local data = convertNBTtoTable(e[1]:sub(30, -1))
     pos.position = { x = tonumber(data.Pos["0"]) or 0, y = tonumber(data.Pos["1"]) or 0, z = tonumber(data.Pos["2"]) or 0 }
     pos.rotation = { rX = tonumber(data.Rotation["0"]) or 0, ["rY"] = tonumber(data.Rotation["1"]) or 0 }
-    local _, d = commands.tp(entitySelector, 0, 10, 0)
+    local _, d = commands.async.tp(entitySelector, 0, 10, 0)
     return pos
 end
 
@@ -733,15 +733,15 @@ local sel = setmetatable(sel or {}, {
             table.remove(pos, numPos)
         elseif normalArgs[1] == "poly" then
             Selection.type = "poly"
-            sendChat "Selection type set to \"poly\""
+            sendChat "Selection type set to \"poly\"."
             resetPos()
         elseif normalArgs[1] == "cuboid" then
             Selection.type = "cuboid"
-            sendChat "Selection type set to \"cuboid\""
+            sendChat "Selection type set to \"cuboid\"."
             resetPos()
         elseif normalArgs[1] == "ellipse" then
             Selection.type = "ellipse"
-            sendChat "Selection type set to \"ellipse\""
+            sendChat "Selection type set to \"ellipse\"."
             resetPos()
         end
         fs.delete(ConfigFolder .. SelectionStoragePath)

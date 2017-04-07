@@ -427,7 +427,7 @@ function sel.shift(silent) --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Shif
         makeCuboidSelection()
     elseif SelectionType == "poly" and poly then
         makePolySelection()
-    elseif SelectionType == "ellipse" and ellipse then --Might as well put it here for later.
+    elseif SelectionType == "ellipse" and ellipse then
         makeEllipseSelection()
     end
     if not silent then
