@@ -47,7 +47,7 @@ end
 Selection = Selection or {} --Only create globals in the outermost scope.
 pos = pos or {}
 
-function makePolygonSelection()
+function makePolySelection()
 	if not pos or not pos[1] or not pos[2] then
         sendChat "Select something first!"
         return
