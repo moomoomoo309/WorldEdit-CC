@@ -18,7 +18,7 @@ pos = nil
 isCommandComputer = nil
 local taskAmt
 px, py, pz = nil, nil, nil
-Blocks, Meta, Blocks2, Meta2, Percentages, Spaces, TotalPercent = nil, nil, nil, nil, nil, nil, nil
+Blocks, Meta, Blocks2, Meta2, Percentages, Spaces, TotalPercent, Pipes = nil, nil, nil, nil, nil, nil, nil, nil
 command, normalArgs, namedArgs, shortSwitches, longSwitches = nil, nil, nil, nil, nil
 local Direction
 local firstHpos
@@ -32,7 +32,7 @@ local cfg
 local APIPath, CuboidPath, SelPath, ClipboardPath, debugPath, PolyPath, EllipsePath
 ClipboardStoragePath, SelectionStoragePath, ClipboardStorage, IDPath, SerpentPath = nil, nil, nil, nil, nil
 local p, w, pl, ent
-local BlockNames, MCNames, IDs
+local BlockNames, MCNames, IDs, pipeBlocks
 local blockBlacklist, trustedIDs, currentCmds
 local Clipboard
 maxSel = { cuboid = 2, ellipse = 2, poly = 9001 } --The maximum number of positions allowed for selection types. Only cuboid and ellipse are used currently.
@@ -452,7 +452,7 @@ local function hpos(numPosition) --Selects the block the player is looking at.
             makeCuboidSelection()
         elseif Selection.type == "poly" and poly then
             makePolySelection()
-        elseif Selection.type == "ellipse" and ellipse then --Might as well put it here for later.
+        elseif Selection.type == "ellipse" and ellipse then
             makeEllipseSelection()
         end
     end
@@ -562,14 +562,28 @@ function parseBlockPatterns()
         local BlocksTbl = {}
         local MetaTbl = {}
         local PercentagesTbl = {}
+        local PipeTbl = {}
         local tmpBlocks = stringx.split(text, ",") --Split each block type
         for i = 1, #tmpBlocks do
             local findColon = tmpBlocks[i]:find(":", nil, true) --Check if the meta was specified
+            local findPipe = tmpBlocks[i]:find("|", nil, true) --Check if NBT was specified
             if findColon then --If it was, put the ID and meta in, otherwise, put the ID in and -1 for the meta.
                 table.insert(BlocksTbl, tonumber(tmpBlocks[i]:sub(1, findColon - 1)) or tmpBlocks[i]:sub(1, findColon - 1))
-                table.insert(MetaTbl, tmpBlocks[i]:sub(findColon + 1))
+                if findPipe then
+                    table.insert(MetaTbl, tmpBlocks[i]:sub(findColon + 1, findPipe - 1))
+                    table.insert(PipeTbl, tmpBlocks[i]:sub(findPipe + 1))
+                else
+                    table.insert(MetaTbl, tmpBlocks[i]:sub(findColon + 1))
+                    table.insert(PipeTbl, false)
+                end
             else
-                table.insert(BlocksTbl, tonumber(tmpBlocks[i]) or tmpBlocks[i])
+                if findPipe then
+                    table.insert(BlocksTbl, tonumber(tmpBlocks[i]:sub(1, findPipe - 1)) or tmpBlocks[i]:sub(1, findPipe - 1))
+                    table.insert(PipeTbl, tmpBlocks[i]:sub(findPipe + 1))
+                else
+                    table.insert(BlocksTbl, tonumber(tmpBlocks[i]) or tmpBlocks[i])
+                    table.insert(PipeTbl, false)
+                end
                 table.insert(MetaTbl, -1)
             end
         end
@@ -584,19 +598,9 @@ function parseBlockPatterns()
                     PercentagesTbl[i] = PercentagesTbl[i] or false --This could be any non-number.
                 end
             end
-            for i = 1, #MetaTbl do
-                local tmpMeta2 = stringx.split(tostring(MetaTbl[i]), "%")
-                if #tmpMeta2 == 2 then
-                    MetaTbl[i] = tmpMeta2[2]
-                    PercentagesTbl[i] = tmpMeta2[1]
-                else
-                    MetaTbl[i] = tmpMeta2[1]
-                    PercentagesTbl[i] = PercentagesTbl[i] or false --This could be any non-number.
-                end
-            end
         end
         if needsPercent then
-            return BlocksTbl, MetaTbl, PercentagesTbl
+            return BlocksTbl, MetaTbl, PercentagesTbl, PipeTbl
         else
             return BlocksTbl, MetaTbl
         end
@@ -604,9 +608,9 @@ function parseBlockPatterns()
 
     if #normalArgs == 2 then --If two types of blocks were specified
         Blocks, Meta = splitTbls(normalArgs[1], false)
-        Blocks2, Meta2, Percentages = splitTbls(normalArgs[2], true)
+        Blocks2, Meta2, Percentages, Pipes = splitTbls(normalArgs[2], true)
     else
-        Blocks2, Meta2, Percentages = splitTbls(normalArgs[1], true)
+        Blocks2, Meta2, Percentages, Pipes = splitTbls(normalArgs[1], true)
     end
     TotalPercent = 0 --Convert ones without percentages to ones WITH percentages!
     Spaces = 0
@@ -1728,6 +1732,17 @@ local function init()
         ["minecraft:glass_pane"] = 102,
         ["minecraft:log"] = 17
     }
+    pipeBlocks = {
+        ["minecraft:standing_sign"] =
+        function(pipeTbl)
+            return ('{"Text1":"%s","Text2","%s","Text3","%s","Text4","%s"}'):format(
+                pipeTbl[1] or "",
+                pipeTbl[2] or "",
+                pipeTbl[3] or "",
+                pipeTbl[4] or "")
+        end,
+        ["minecraft:wall_sign"] = function(pipeTbl) return pipeBlocks["minecraft:standing_sign"](pipeTbl) end
+    }
     parseCmdArgs() --Check any arguments passed through the command line
     parseConfig() --Read the config file and get the values from it
     blockBlacklist = { 0, "minecraft:air" } --Blocks that should be ignored in hpos.
@@ -1781,6 +1796,6 @@ parallel.waitForAny(main, getConsoleInput, getRednetInput, taskCounter, serpentP
 --  If you want to bundle WE into a single file, just copy the functions over. Each file is just a bunch of functions, so
 --  they could all be pasted into here and work fine. I separated them to make debugging easier for me.
 --
---If you like neat little lua snippets, look at map or getTblVal in GeneralAPI. getTblVal's a one-liner!
+--If you like neat little lua snippets, look at map or tablex.get in GeneralAPI. tablex.get's a one-liner!
 
 --Program(s) made by moomoomoo3O9 and exlted, with contributions from Wergat and Lyqyd--
