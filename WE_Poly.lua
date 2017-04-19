@@ -83,7 +83,7 @@ function makePolygonSelection()
 		x = Min.x - 1
 		z = Min.z - 1
 	}
-    Selection = { pos1 = Min, pos2 = Max, points = pos type = "polygon" }
+    Selection = { pos1 = Min, pos2 = Max, points = pos type = "poly" }
 	for x = Min.x, Max.x do
 		for z = Min.z, Max.z do
 			local currPos = {
@@ -107,3 +107,19 @@ function makePolygonSelection()
 end
 
 poly = { }
+
+function poly.expand()
+	sendChat "Not Implemented"
+end
+
+function poly.contract()
+	sendChat "Not Implemented"
+end
+
+function poly.inset()
+	sendChat "Not Implemented"
+end
+
+function poly.outset()
+	sendChat "Not Implemented"
+end
