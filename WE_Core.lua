@@ -18,11 +18,11 @@ pos = nil
 isCommandComputer = nil
 local taskAmt
 px, py, pz = nil, nil, nil
-Blocks, Meta, Blocks2, Meta2, Percentages, Spaces, TotalPercent, Pipes = {}, {}, {}, {}, {}, nil, nil, {}
+Blocks, Meta, Blocks2, Meta2, Percentages, Spaces, TotalPercent, Pipes = nil, nil, nil, nil, nil, nil, nil, nil
 command, normalArgs, namedArgs, shortSwitches, longSwitches = nil, nil, nil, nil, nil
 local Direction
 local firstHpos
-serpent = nil
+local serpent
 local endProgram
 local username, message, OriginalMessage
 local debug
@@ -187,9 +187,9 @@ local function makeCuboidSelection() --Makes a cuboid selection given two points
     return Selection
 end
 
----pos is the table which holds the positions which bound the selection, and is also a function which sets a position to the player's feet.
+--pos is the table which holds the positions which bound the selection, and is also a function which sets a position to the player's feet.
 --Using metatables, it can do both!
-local function resetPos(tbl) ---Resets pos to the given value, resetting its metatable and setting its values to what's provided (or an empty table)
+local function resetPos(tbl) --Resets pos to the given value, resetting its metatable and setting its values to what's provided (or an empty table)
     pos = setmetatable(tbl or { firstPos = false, type = Selection.type or "cuboid" }, {
         __call =
         function(_, numPosition)
@@ -612,7 +612,6 @@ function parseBlockPatterns()
     else
         Blocks2, Meta2, Percentages, Pipes = splitTbls(normalArgs[1], true)
     end
-
     TotalPercent = 0 --Convert ones without percentages to ones WITH percentages!
     Spaces = 0
     for i = 1, #Percentages do
@@ -951,8 +950,8 @@ local function exportVar(varName, filePath, silent, printFct, shouldPrint) --Pri
     local var = rawget(_G, shortVarName) or rawget(_ENV, shortVarName) --Check locals and globals
     if var ~= nil then --It's allowed to be false, so an explicit nil check is needed.
         local outString = ""
-        if type(var) == "table" and varName:find(".", nil, true) then
-            local fields = stringx.split(varName, ".")
+        if type(var) == "table" and varName:find("%.", nil, true) then
+            local fields = stringx.psplit(varName, "%.")
             for i = 2, #fields do
                 var = var[tonumber(fields[i]) or fields[i]]
             end
@@ -997,7 +996,7 @@ function hasSelection() --The most common condition for a command to fail. Used 
 end
 
 function hasNBTSupport() --Check if command computers exist or the adventure map interface works in this version.
-    return (fs.open("/rom/help/changelog", "r").readAll():find("1.7", nil, true)) ~= nil or p
+    return (fs.open("/rom/help/changelog", "r").readAll():find("1.7", nil, true)) ~= nil
 end
 
 function hasNBTSupportAndSel()
@@ -1048,6 +1047,8 @@ local function registerCommands()
         io.write "Type your command:\n> "
     end)
     registerCommand("exportvar", function() sendChat(exportVar(normalArgs[1]), ConfigFolder .. "vars/" .. normalArgs[1], tablex.indexOf(longSwitches, "--silent"), sendChat) end)
+    registerCommand("rotate", clipboard.rotate, function() return type(Clipboard) == "table" and #Clipboard > 0 end, function() sendChat "You need a clipboard to rotate!" end)
+    registerCommand({ "list", "ls" }, clipboard.list, true)
 end
 
 local function getPlayerName() --Returns the name of the closest player.
@@ -1059,8 +1060,7 @@ local function getPlayerName() --Returns the name of the closest player.
     end
 end
 
----lsh, created by Lyqyd, with only a few tweaks by me
---(mostly bugfixes to get it working without the entirety of the file, and changing the history path)
+--lsh, created by Lyqyd, with only a few tweaks by me (mostly bugfixes to get it working without the entirety of the file, and changing the history path)
 --Used for the console input (and on the rednet companion as well)
 local runHistory = {}
 if fs.exists ".history" then
@@ -1227,7 +1227,7 @@ end
 --End of lsh
 
 
-local function getConsoleInput() ---Gets commands from typing on the computer itself.
+local function getConsoleInput() --Gets commands from typing on the computer itself.
     while true do
         local str = customRead(runHistory)
         local username = getPlayerName()
@@ -1235,7 +1235,7 @@ local function getConsoleInput() ---Gets commands from typing on the computer it
     end
 end
 
-local function getRednetInput() ---Gets commands from rednet messages sent by trusted IDs.
+local function getRednetInput() --Gets commands from rednet messages sent by trusted IDs.
     peripheral.find("modem", rednet.open) --Open all rednet modems
     local event = { os.pullEvent "rednet_message" } --Listen for the initial message
     while true do
@@ -1261,7 +1261,7 @@ end
 
 local args = { ... }
 
-local function parseCmdArgs() ---Parse any arguments passed through the command line
+local function parseCmdArgs() --Parse any arguments passed through the command line
     if #args == 0 then
         return
     end
@@ -1301,7 +1301,7 @@ local function parseCmdArgs() ---Parse any arguments passed through the command 
     end
 end
 
-local function readFiles() ---Read all of the files this program can run.
+local function readFiles()
     for _, i in pairs { APIPath, CuboidPath, SelPath, ClipboardPath } do
         if fs.exists(i) then
             shell.run(i)
@@ -1310,9 +1310,6 @@ local function readFiles() ---Read all of the files this program can run.
             endProgram = true
             break
         end
-    end
-    if SerpentPath then
-        serpent = dofile(SerpentPath)
     end
     for _, i in pairs { EllipsePath, PolyPath } do
         if fs.exists(i) then
@@ -1738,7 +1735,8 @@ local function init()
     pipeBlocks = {
         ["minecraft:standing_sign"] =
         function(pipeTbl)
-            return ('{"Text1":"%s","Text2","%s","Text3","%s","Text4","%s"}'):format(pipeTbl[1] or "",
+            return ('{"Text1":"%s","Text2","%s","Text3","%s","Text4","%s"}'):format(
+                pipeTbl[1] or "",
                 pipeTbl[2] or "",
                 pipeTbl[3] or "",
                 pipeTbl[4] or "")
@@ -1764,7 +1762,7 @@ local function init()
 end
 
 --Main program loop
-local function main()
+function main()
     if endProgram then
         return
     end
