@@ -1,4 +1,4 @@
-function argError(...) --Returns error text if any of the arguments are nil. Pass it your command's arguments.
+function argError(...) --- Returns error text if any of the arguments are nil. Pass it your command's arguments.
     for k, v in pairs({ ... }) do
         if v == nil then
             return "Argument " .. k .. " is nil."
@@ -6,15 +6,15 @@ function argError(...) --Returns error text if any of the arguments are nil. Pas
     end
 end
 
-function all(...) --Returns if all of the given values are truthy.
+function all(...) --- Returns if all of the given values are truthy.
     return select("#", ...) == 1 and ((...) and true or false) or ((...) and all(select(2, ...)))
 end
 
-function any(...) --Returns if any of the given values are truthy.
+function any(...) --- Returns if any of the given values are truthy.
     return ((...) and true or false) or any(select(2, ...))
 end
 
-function mapIterative(fct, numArgs, ...) --Allows functions to take unlimited arguments.
+function mapIterative(fct, numArgs, ...) --- Allows functions to take unlimited arguments.
     assert(type(fct) == "function" and type(numArgs) == "number")
     if numArgs == 0 then
         fct()
@@ -37,7 +37,7 @@ function mapIterative(fct, numArgs, ...) --Allows functions to take unlimited ar
     return unpack(returns)
 end
 
-function mapRecursive(fct, numArgs, ...) --Allows functions to take unlimited arguments.
+function mapRecursive(fct, numArgs, ...) --- Allows functions to take unlimited arguments.
     assert(type(fct) == "function" and type(numArgs) == "number")
     local results = {}
     local function innerWrap(fct, numArgs, results, args)
@@ -70,12 +70,12 @@ map = mapRecursive --mapRecursive is faster, unsurprisingly, as a good recursion
 
 local oldmath = {}
 oldmath.floor = math.floor
-function math.floor(...) --Same as default in Lua, but it takes as many values as it needs.
+function math.floor(...) --- Same as default in Lua, but it takes as many values as it needs.
     return map(oldmath.floor, 1, ...)
 end
 
 oldmath.ceil = math.ceil
-function math.ceil(...) --Same as default in Lua, but it takes as many values as it needs.
+function math.ceil(...) --- Same as default in Lua, but it takes as many values as it needs.
     return map(oldmath.ceil, 1, ...)
 end
 
@@ -84,20 +84,20 @@ function oldmath.round(num)
     return lowNum + (num - lowNum < .5 and 0 or 1)
 end
 
-function math.round(...) --I have no idea why this isn't in Lua. Also takes as many values as it needs.
+function math.round(...) --- I have no idea why this isn't in Lua. Also takes as many values as it needs.
     return map(oldmath.round, 1, ...)
 end
 
-function math.frandom(low, high) --Works like math.random(low,high), but returns a float instead of an int.
+function math.frandom(low, high) --- Works like math.random(low,high), but returns a float instead of an int.
     return math.random(low - (high and 0 or 1), high and high - 1 or nil) + math.random()
 end
 
 stringx = stringx or {}
-function stringx.indexOf(str, char, index) --Works like String.indexOf() in Java without pattern recognition.
+function stringx.indexOf(str, char, index) --- Works like String.indexOf() in Java without pattern recognition.
     return str:find(char, index, true)
 end
 
-function stringx.lastIndexOf(str, char, index) --Works like String.lastIndexOf() in Java without pattern recognition.
+function stringx.lastIndexOf(str, char, index) --- Works like String.lastIndexOf() in Java without pattern recognition.
     index = index or 1
     local charLen = #char
     for i = #str - charLen + index, 1, -1 do
@@ -107,12 +107,12 @@ function stringx.lastIndexOf(str, char, index) --Works like String.lastIndexOf()
     end
 end
 
-function stringx.findLast(str, char, index, plain) --Works like string.find, but from the back to the front. If you're using a lua pattern, make the lua pattern work for the reversed string.
+function stringx.findLast(str, char, index, plain) --- Works like string.find, but from the back to the front. If you're using a lua pattern, make the lua pattern work for the reversed string.
     local lastIndex, lastIndexEnd = str:reverse():find((plain and char:reverse() or char), index, plain)
     return lastIndex and #str - lastIndexEnd + 1, #str - lastIndex + 1
 end
 
-function stringx.split(str, char) --Converts str into a table given char as a delimiter. Works like String.split() in Java without pattern recognition.
+function stringx.split(str, char) --- Converts str into a table given char as a delimiter. Works like String.split() in Java without pattern recognition.
     local tbl = {}
     local findChar, findCharEnd = str:find(char, nil, true)
     if findChar then
@@ -131,7 +131,7 @@ function stringx.split(str, char) --Converts str into a table given char as a de
     return tbl
 end
 
-function stringx.psplit(str, char) --Converts str into a table given char as a delimiter. Works like String.split() in Java with pattern recognition.
+function stringx.psplit(str, char) --- Converts str into a table given char as a delimiter. Works like String.split() in Java with pattern recognition.
     local tbl = {}
     local findChar, findCharEnd = str:find(char, nil, true)
     if findChar then
@@ -150,29 +150,29 @@ function stringx.psplit(str, char) --Converts str into a table given char as a d
     return tbl
 end
 
-function stringx.splitFirst(str, char) --Returns the characters before and after the first instance of char in str without pattern recognition.
+function stringx.splitFirst(str, char) --- Returns the characters before and after the first instance of char in str without pattern recognition.
     local index, indexEnd = stringx.indexOf(str, char)
     return str:sub(1, index), str:sub(indexEnd + 1)
 end
 
-function stringx.splitLast(str, char) --Returns the characters before and after the last instance of char in str without pattern recognition.
+function stringx.splitLast(str, char) --- Returns the characters before and after the last instance of char in str without pattern recognition.
     local index, indexEnd = stringx.lastIndexOf(str, char)
     return str:sub(1, index), str:sub(indexEnd + 1)
 end
 
-function stringx.psplitFirst(str, char) --Returns the characters before and after the first instance of char in str with pattern recognition.
+function stringx.psplitFirst(str, char) --- Returns the characters before and after the first instance of char in str with pattern recognition.
     local index, indexEnd = str:find(char)
     return str:sub(1, index), str:sub(indexEnd + 1)
 end
 
-function stringx.psplitLast(str, char) --Returns the characters before and after the last instance of char in str with pattern recognition.
+function stringx.psplitLast(str, char) --- Returns the characters before and after the last instance of char in str with pattern recognition.
     local index, indexEnd = stringx.findLast(str, char)
     return str:sub(1, index), str:sub(indexEnd + 1)
 end
 
 tablex = {}
---Returns the index of element in tbl, or nil if no such index exists.
---Returns the indices as a table as {ind1,ind2,...indN} for tbl[ind1][ind2]...[indN].
+--- Returns the index of element in tbl, or nil if no such index exists.
+-- Returns the indices as a table as {ind1,ind2,...indN} for tbl[ind1][ind2]...[indN].
 function tablex.indexOf(tbl, element)
     local indices = {}
     local function searchTbl(tbl, element)
@@ -207,12 +207,14 @@ function tablex.indexOf(tbl, element)
     end
 end
 
-tablex.find = tablex.indexOf
+tablex.find = tablex.indexOf --Alias
 
---There isn't a tablex.lastIndexOf or a tablex.findLast because not all tables necessarily have an order of traversal until you traverse through them, 
---and therefore cannot be traversed in reverse.
+--There isn't a tablex.lastIndexOf or a tablex.findLast because not all tables necessarily have an order of traversal
+--until they have been traversed through, and therefore cannot be traversed in reverse.
+--It could be done by traversing it once, keeping track of the keys, and traversing it in the reverse key order,
+--But that's pretty inefficient, and shouldn't be needed.
 
-function tablex.merge(t1, t2) --Merges tables, without any advanced functionality, like metatable merging.
+function tablex.merge(t1, t2) --- Merges tables, without any advanced functionality, like metatable merging.
     for k, v in pairs(t2) do
         if type(v) == "table" and type(t1[k]) == "table" then
             tablex.merge(t1[k], t2[k])
@@ -223,15 +225,15 @@ function tablex.merge(t1, t2) --Merges tables, without any advanced functionalit
     return t1
 end
 
---This is what you would give the results from table.indexOf() to.
---The first argument should be the table being accessed, the following arguments should be the indices in order.
---Example use: To access tbl.bacon[a][5].c, use "tablex.get(tbl,unpack{"bacon",a,5,"c"})" or "tablex.get(tbl,"bacon",a,5,"c")"
+--- This is what you would give the results from table.indexOf() to.
+-- The first argument should be the table being accessed, the following arguments should be the indices in order.
+-- Example use: To access tbl.bacon[a][5].c, use "tablex.get(tbl,unpack{"bacon",a,5,"c"})" or "tablex.get(tbl,"bacon",a,5,"c")"
 function tablex.get(...)
     return select("#", ...) >= 3 and tablex.get((...)[select(2, ...)], select(3, ...)) or (...)[select(2, ...)]
 end
 
 --Modified from penlight. https://github.com/stevedonovan/Penlight/blob/master/lua/pl/tablex.lua
-function tablex.equals(tbl1, tbl2, ignoreMetatable, threshold) --Returns if two tables are the same, including sub-tables.
+function tablex.equals(tbl1, tbl2, ignoreMetatable, threshold) --- Returns if two tables are the same, including sub-tables.
     local type1 = type(tbl1)
     if type1 ~= type(tbl2) then return false end
     --Non-table types can be directly compared
@@ -265,8 +267,8 @@ function tablex.equals(tbl1, tbl2, ignoreMetatable, threshold) --Returns if two 
     return true
 end
 
---Copies the value of tbl1 to tbl2 instead of making a pointer.
---Modified from penlight. https://github.com/stevedonovan/Penlight/blob/master/lua/pl/tablex.lua
+--- Copies the value of tbl1 to tbl2 instead of making a pointer.
+-- Modified from penlight. https://github.com/stevedonovan/Penlight/blob/master/lua/pl/tablex.lua
 function tablex.copy(tbl, errorIfNotTable)
     if type(tbl) ~= "table" then
         if errorIfNotTable then --Silently returns the original table by default.

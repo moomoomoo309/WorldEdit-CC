@@ -554,4 +554,7 @@ registerCommand("move", clipboard.move, hasNBTSupportAndSel, missingPos)
 registerCommand("cut", clipboard.cut, hasNBTSupportAndSel, missingPos)
 registerCommand("deepcut", function() clipboard.cut(false, true) end, hasNBTSupportAndSel, missingPos)
 registerCommand("stack", clipboard.stack, hasNBTSupportAndSel, missingPos)
+registerCommand("rotate", clipboard.rotate, function() return type(Clipboard) == "table" and #Clipboard > 0 end, function() sendChat "You need a clipboard to rotate!" end)
+registerCommand({ "list", "ls" }, clipboard.list, true)
+
 
