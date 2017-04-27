@@ -18,11 +18,11 @@ pos = nil
 isCommandComputer = nil
 local taskAmt
 px, py, pz = nil, nil, nil
-Blocks, Meta, Blocks2, Meta2, Percentages, Spaces, TotalPercent, Pipes = nil, nil, nil, nil, nil, nil, nil, nil
+Blocks, Meta, Blocks2, Meta2, Percentages, Spaces, TotalPercent, Pipes = {}, {}, {}, {}, {}, nil, nil, {}
 command, normalArgs, namedArgs, shortSwitches, longSwitches = nil, nil, nil, nil, nil
 local Direction
 local firstHpos
-local serpent
+serpent = nil
 local endProgram
 local username, message, OriginalMessage
 local debug
@@ -187,9 +187,9 @@ local function makeCuboidSelection() --Makes a cuboid selection given two points
     return Selection
 end
 
---pos is the table which holds the positions which bound the selection, and is also a function which sets a position to the player's feet.
---Using metatables, it can do both!
-local function resetPos(tbl) --Resets pos to the given value, resetting its metatable and setting its values to what's provided (or an empty table)
+--- pos is the table which holds the positions which bound the selection, and is also a function which sets a position to the player's feet.
+-- Using metatables, it can do both!
+local function resetPos(tbl) --- Resets pos to the given value, resetting its metatable and setting its values to what's provided (or an empty table)
     pos = setmetatable(tbl or { firstPos = false, type = Selection.type or "cuboid" }, {
         __call =
         function(_, numPosition)
@@ -392,15 +392,15 @@ local function getPlayerPositionAndLooking(playerName) --Returns the position, p
     if not isArmorStandCreated[playerName] then
         isArmorStandCreated[playerName] = commands.testfor(entitySelector)
         if not isArmorStandCreated[playerName] then
-            commands.summon("ArmorStand", "~", "~1", "~", { CustomName = playerName, ShowArms = 1, Invisible = 1, NoGravity = 1, DisabledSlots = 1973790 })
+            commands.async.summon("ArmorStand", "~", "~1", "~", { CustomName = playerName, ShowArms = 1, Invisible = 1, NoGravity = 1, DisabledSlots = 1973790 })
         end
     end
-    local _, d = commands.tp(entitySelector, playerName)
+    commands.async.tp(entitySelector, playerName)
     local _, e = commands.entitydata(entitySelector, {})
     local data = convertNBTtoTable(e[1]:sub(30, -1))
     pos.position = { x = tonumber(data.Pos["0"]) or 0, y = tonumber(data.Pos["1"]) or 0, z = tonumber(data.Pos["2"]) or 0 }
     pos.rotation = { rX = tonumber(data.Rotation["0"]) or 0, ["rY"] = tonumber(data.Rotation["1"]) or 0 }
-    local _, d = commands.async.tp(entitySelector, 0, 10, 0)
+    commands.async.tp(entitySelector, 0, 10, 0)
     return pos
 end
 
@@ -531,7 +531,7 @@ function selectLargeArea(x1, y1, z1, x2, y2, z2, volume, progress)
                     local formattedPercent = tostring(100 * i / (totalCuboidsX * totalCuboidsY * totalCuboidsZ)) --So, let's do some string formatting manually.
                     formattedPercent = formattedPercent:sub(1, (formattedPercent:find(".", nil, true) or #formattedPercent - 1) + 1)
                     local formattedBlocksPercent = tostring(100 * totalVol / ((x2 - x1 + 1) * (y2 - y1 + 1) * (z2 - z1 + 1)))
-                    formattedBlocksPercent = formattedBlocksPercent:sub(1, (formattedBlocksPercent:find(".", nil, true) or #formattedBlocksPercent - 1) + 1)
+                    formattedBlocksPercent = formattedBlocksPercent:sub(1, (formattedBlocksPercent:find(".", nil, true) or -2) + 1)
                     sendChat(("Scanning... %s%% (%d/%db, +%d, %d/%dcb (%s%%))"):format(formattedBlocksPercent, totalVol, (x2 - x1 + 1) * (y2 - y1 + 1) * (z2 - z1 + 1), newVol, i, totalCuboidsX * totalCuboidsY * totalCuboidsZ, formattedPercent))
                 end
                 blockInfo = tablex.merge(blockInfo, tbl)
@@ -612,6 +612,7 @@ function parseBlockPatterns()
     else
         Blocks2, Meta2, Percentages, Pipes = splitTbls(normalArgs[1], true)
     end
+
     TotalPercent = 0 --Convert ones without percentages to ones WITH percentages!
     Spaces = 0
     for i = 1, #Percentages do
@@ -633,6 +634,11 @@ function parseBlockPatterns()
         if not tonumber(Percentages[i]) then
             Percentages[i] = TotalPercent / (#Percentages - Spaces)
         end
+    end
+    if #normalArgs == 2 then
+        return Blocks, Meta, Blocks2, Meta2, Percentages, Pipes
+    else
+        return Blocks2, Meta2, Percentages, Pipes
     end
 end
 
@@ -803,7 +809,7 @@ local commandSyntax = {
     hpos = "hpos (position number)",
     hpos1 = "hpos1 (Takes no arguments)",
     hpos2 = "hpos2 (Takes no arguments)",
-    sel = "sel [1/2/vert/poly/cuboid]",
+    sel = "sel [1/2/vert/poly/cuboid/ellipse]",
     set = "set [probability]block[:meta][,...] (See \"help BlockPatterns\" for more information)",
     replace = "replace [probability]block1[:meta1][,...] block2[:meta2][,...] (See \"help BlockPatterns\" for more information)",
     expand = "expand (amount) [direction] (Direction defaults to \"self\")",
@@ -950,8 +956,8 @@ local function exportVar(varName, filePath, silent, printFct, shouldPrint) --Pri
     local var = rawget(_G, shortVarName) or rawget(_ENV, shortVarName) --Check locals and globals
     if var ~= nil then --It's allowed to be false, so an explicit nil check is needed.
         local outString = ""
-        if type(var) == "table" and varName:find("%.", nil, true) then
-            local fields = stringx.psplit(varName, "%.")
+        if type(var) == "table" and varName:find(".", nil, true) then
+            local fields = stringx.split(varName, ".")
             for i = 2, #fields do
                 var = var[tonumber(fields[i]) or fields[i]]
             end
@@ -996,7 +1002,7 @@ function hasSelection() --The most common condition for a command to fail. Used 
 end
 
 function hasNBTSupport() --Check if command computers exist or the adventure map interface works in this version.
-    return (fs.open("/rom/help/changelog", "r").readAll():find("1.7", nil, true)) ~= nil
+    return (fs.open("/rom/help/changelog", "r").readAll():find("1.7", nil, true)) ~= nil or p
 end
 
 function hasNBTSupportAndSel()
@@ -1047,8 +1053,6 @@ local function registerCommands()
         io.write "Type your command:\n> "
     end)
     registerCommand("exportvar", function() sendChat(exportVar(normalArgs[1]), ConfigFolder .. "vars/" .. normalArgs[1], tablex.indexOf(longSwitches, "--silent"), sendChat) end)
-    registerCommand("rotate", clipboard.rotate, function() return type(Clipboard) == "table" and #Clipboard > 0 end, function() sendChat "You need a clipboard to rotate!" end)
-    registerCommand({ "list", "ls" }, clipboard.list, true)
 end
 
 local function getPlayerName() --Returns the name of the closest player.
@@ -1060,8 +1064,9 @@ local function getPlayerName() --Returns the name of the closest player.
     end
 end
 
---lsh, created by Lyqyd, with only a few tweaks by me (mostly bugfixes to get it working without the entirety of the file, and changing the history path)
---Used for the console input (and on the rednet companion as well)
+--- lsh, created by Lyqyd, with only a few tweaks by me
+-- (mostly bugfixes to get it working without the entirety of the file, and changing the history path)
+-- Used for the console input (and on the rednet companion as well)
 local runHistory = {}
 if fs.exists ".history" then
     local histFile = io.open(".history", "r")
@@ -1227,7 +1232,7 @@ end
 --End of lsh
 
 
-local function getConsoleInput() --Gets commands from typing on the computer itself.
+local function getConsoleInput() --- Gets commands from typing on the computer itself.
     while true do
         local str = customRead(runHistory)
         local username = getPlayerName()
@@ -1235,7 +1240,7 @@ local function getConsoleInput() --Gets commands from typing on the computer its
     end
 end
 
-local function getRednetInput() --Gets commands from rednet messages sent by trusted IDs.
+local function getRednetInput() --- Gets commands from rednet messages sent by trusted IDs.
     peripheral.find("modem", rednet.open) --Open all rednet modems
     local event = { os.pullEvent "rednet_message" } --Listen for the initial message
     while true do
@@ -1261,7 +1266,7 @@ end
 
 local args = { ... }
 
-local function parseCmdArgs() --Parse any arguments passed through the command line
+local function parseCmdArgs() --- Parse any arguments passed through the command line
     if #args == 0 then
         return
     end
@@ -1301,7 +1306,7 @@ local function parseCmdArgs() --Parse any arguments passed through the command l
     end
 end
 
-local function readFiles()
+local function readFiles() --- Read all of the files this program can run.
     for _, i in pairs { APIPath, CuboidPath, SelPath, ClipboardPath } do
         if fs.exists(i) then
             shell.run(i)
@@ -1310,6 +1315,9 @@ local function readFiles()
             endProgram = true
             break
         end
+    end
+    if SerpentPath then
+        serpent = dofile(SerpentPath)
     end
     for _, i in pairs { EllipsePath, PolyPath } do
         if fs.exists(i) then
@@ -1733,13 +1741,8 @@ local function init()
         ["minecraft:log"] = 17
     }
     pipeBlocks = {
-        ["minecraft:standing_sign"] =
-        function(pipeTbl)
-            return ('{"Text1":"%s","Text2","%s","Text3","%s","Text4","%s"}'):format(
-                pipeTbl[1] or "",
-                pipeTbl[2] or "",
-                pipeTbl[3] or "",
-                pipeTbl[4] or "")
+        ["minecraft:standing_sign"] = function(pipeTbl)
+            return { Text1 = pipeTbl[1], Text2 = pipeTbl[2], Text3 = pipeTbl[3], Text4 = pipeTbl[4] }
         end,
         ["minecraft:wall_sign"] = function(pipeTbl) return pipeBlocks["minecraft:standing_sign"](pipeTbl) end
     }
@@ -1762,7 +1765,7 @@ local function init()
 end
 
 --Main program loop
-function main()
+local function main()
     if endProgram then
         return
     end
