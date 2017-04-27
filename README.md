@@ -65,19 +65,19 @@ Special thanks to exlted for rewriting half of my messy code with me and doing m
 
 
 ## Changelog
-(1.5.1) July 24th, 2016: Sped up all scanning of blocks, added list, rotate, exportVar, deepCopy, deepCut. Changed copy/cut to not include NBT data.
-(1.5) May 31st, 2016: Added NBT support to the command computer, implemented hpos on command computers. Sped up set and replace further.
-(1.4.1) May 29th, 2016: Added rednet and direct command input, removing chat box requirement, sped up set
-(1.4) December 31, 2015: Re-enabled NBT support for the Adventure Map Interface, Added configs. Paths can be changed for all files properly.
-(1.3.1) July 31, 2015: Added hacky support to change paths for other programs. Will be implemented better later.
-(1.3.0) July 15, 2015: Ported to command computers in a stable manner. hpos1 and hpos2 do not work on command computers. Requires some type of chat box.
-(1.2.1) June 29, 2015: Added help.
-(1.2.0) May 24, 2015: WE_Clipboard finally released. reboot, refresh, and terminate added. There is always hope.
-(1.1.2) May 18, 2015: Quality of life changes. No major changes. First release dependent upon GeneralAPI.
-(1.1.1) March 4, 2015: Program will wait until it finds an adventure map interface. First version uploaded to the app store.
-February 21, 2015: Did all the things. Fixed everything but WE_Clipboard, because it's a lost cause.
-May 30, 2014: Added //shift.
-May 30, 2014: Added chat feedback for all commands and implemented //chunk.
-May 29, 2014: Ninja edit 2 because I derped and made it say the coordinates for the first position when doing pos2.
-May 29, 2014: Ninja edit fixing replace because I forgot tonumber() (First completely functional release?)
-May 29, 2014: ~~ First completely functional release!~~
+(1.5.1) July 24th, 2016: Sped up all scanning of blocks, added list, rotate, exportVar, deepCopy, deepCut. Changed copy/cut to not include NBT data.  
+(1.5) May 31st, 2016: Added NBT support to the command computer, implemented hpos on command computers. Sped up set and replace further.  
+(1.4.1) May 29th, 2016: Added rednet and direct command input, removing chat box requirement, sped up set  
+(1.4) December 31, 2015: Re-enabled NBT support for the Adventure Map Interface, Added configs. Paths can be changed for all files properly.  
+(1.3.1) July 31, 2015: Added hacky support to change paths for other programs. Will be implemented better later.  
+(1.3.0) July 15, 2015: Ported to command computers in a stable manner. hpos1 and hpos2 do not work on command computers. Requires some type of chat box.  
+(1.2.1) June 29, 2015: Added help.  
+(1.2.0) May 24, 2015: WE_Clipboard finally released. reboot, refresh, and terminate added. There is always hope.  
+(1.1.2) May 18, 2015: Quality of life changes. No major changes. First release dependent upon GeneralAPI.  
+(1.1.1) March 4, 2015: Program will wait until it finds an adventure map interface. First version uploaded to the app store.  
+February 21, 2015: Did all the things. Fixed everything but WE_Clipboard, because it's a lost cause.  
+May 30, 2014: Added //shift.  
+May 30, 2014: Added chat feedback for all commands and implemented //chunk.  
+May 29, 2014: Ninja edit 2 because I derped and made it say the coordinates for the first position when doing pos2.  
+May 29, 2014: Ninja edit fixing replace because I forgot tonumber() (First completely functional release?)  
+May 29, 2014: ~~ First completely functional release!~~  
