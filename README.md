@@ -46,17 +46,16 @@ Don't put "//" before the commands, just say them in chat or on the computer, or
 TODO:
 * Add support for the schematic format (and Worldporter's format, if requested?)
 * Make the region operations in sel work with concave polygons --IN PROGRESS
-* Implement Polygon selection --Some day, I will get exlted to make a functional build of this...
-* Implement ellipsoid selection --And then this...
+* Make polygonal selection use a greedier algorithm.
 
 Program downloads:
-[Installer]("http://pastebin.com/ku1FHyEW") Pastebin ID: ku1FHyEW
-[Core Program]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Core.lua")
-[Cuboid Operations]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Cuboid.lua")
-[Selection Operations]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Sel.lua")
-[Clipboard Operations]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Clipboard.lua")
-[GeneralAPI]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/GeneralAPI.lua")
-[ConfigAPI]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/ConfigAPI.lua")
+[Installer]("http://pastebin.com/ku1FHyEW") Pastebin ID: ku1FHyEW  
+[Core Program]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Core.lua")  
+[Cuboid Operations]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Cuboid.lua")  
+[Selection Operations]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Sel.lua")  
+[Clipboard Operations]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Clipboard.lua")  
+[GeneralAPI]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/GeneralAPI.lua")  
+[ConfigAPI]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/ConfigAPI.lua")  
 [Rednet Companion]("https://dl.dropboxusercontent.com/u/46304817/CC%20Programs/WorldEdit/CCWE%20Reqs/WE_Comms.lua") Pastebin ID: BEAfiM52
 
 If anyone wants to help me in this program, PM me and I'll gladly collaborate. Any ideas or suggestions would be appreciated.
