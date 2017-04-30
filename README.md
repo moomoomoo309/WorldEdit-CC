@@ -1,12 +1,12 @@
-Anyone who has used WorldEdit in the past should know what this program does. It [selects the two opposite corners in a 3d (or 2d) area]("http://wiki.sk89q.com/wiki/WorldEdit/Selection") and can use that selection to [fill, replace, or perform other operations on it.]("http://wiki.sk89q.com/wiki/WorldEdit/Region_operations")
+Anyone who has used WorldEdit in the past should know what this program does. It [selects the two opposite corners in a 3d (or 2d) area](http://wiki.sk89q.com/wiki/WorldEdit/Selection) and can use that selection to [fill, replace, or perform other operations on it.](http://wiki.sk89q.com/wiki/WorldEdit/Region_operations)
 
-This program requires [The Adventure Map Interface]("http://www.computercraft.info/forums2/index.php?/topic/3728-mc-164-cc-158-immibiss-peripherals/page__st__180__p__90273#entry90273") from [Immibis's Peripherals]("http://www.computercraft.info/forums2/index.php?/topic/3728-mc-164-cc-158-immibiss-peripherals/"), or a Command Computer.
+This program requires [The Adventure Map Interface](http://www.computercraft.info/forums2/index.php?/topic/3728-mc-164-cc-158-immibiss-peripherals/page__st__180__p__90273#entry90273) from [Immibis's Peripherals](http://www.computercraft.info/forums2/index.php?/topic/3728-mc-164-cc-158-immibiss-peripherals/), or a Command Computer.
 
-This program has also been uploaded to the [CCSystems App Store]("http://www.computercraft.info/forums2/index.php?/topic/22133-ccsystems-app-store-version-20-release/") called "WorldEdit".
+This program has also been uploaded to the [CCSystems App Store](http://www.computercraft.info/forums2/index.php?/topic/22133-ccsystems-app-store-version-20-release/) called "WorldEdit".
 
 To use it, simply run the program, and type commands into chat, enter them on the computer, or download the rednet companion on a pocket computer, connect a wireless modem to the command computer and run the rednet companion (You will need to allow the ID on the computer itself first!) and type them on the pocket computer.
 
-Some of the supported commands are: (from [WorldEdit/Reference]("http://wiki.sk89q.com/wiki/WorldEdit/Reference"))
+Some of the supported commands are: (from [WorldEdit/Reference](http://wiki.sk89q.com/wiki/WorldEdit/Reference))
 
 ## Commands
 * hpos1 and hpos2 (select the block you're looking at, it's functionally identical to the wand)
@@ -48,15 +48,15 @@ TODO:
 * Make the region operations in sel work with concave polygons --IN PROGRESS
 * Make polygonal selection use a greedier algorithm.
 
-Program downloads:
-[Installer]("http://pastebin.com/ku1FHyEW") Pastebin ID: ku1FHyEW  
-[Core Program]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Core.lua")  
-[Cuboid Operations]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Cuboid.lua")  
-[Selection Operations]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Sel.lua")  
-[Clipboard Operations]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Clipboard.lua")  
-[GeneralAPI]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/GeneralAPI.lua")  
-[ConfigAPI]("https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/ConfigAPI.lua")  
-[Rednet Companion]("https://dl.dropboxusercontent.com/u/46304817/CC%20Programs/WorldEdit/CCWE%20Reqs/WE_Comms.lua") Pastebin ID: BEAfiM52
+Program downloads:  
+[Installer](http://pastebin.com/ku1FHyEW) Pastebin ID: ku1FHyEW  
+[Core Program](https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Core.lua)  
+[Cuboid Operations](https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Cuboid.lua)  
+[Selection Operations](https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Sel.lua)  
+[Clipboard Operations](https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/WE_Clipboard.lua)  
+[GeneralAPI](https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/GeneralAPI.lua)  
+[ConfigAPI](https://raw.githubusercontent.com/moomoomoo309/WorldEdit-CC/master/ConfigAPI.lua)  
+[Rednet Companion](https://dl.dropboxusercontent.com/u/46304817/CC%20Programs/WorldEdit/CCWE%20Reqs/WE_Comms.lua) Pastebin ID: BEAfiM52
 
 If anyone wants to help me in this program, PM me and I'll gladly collaborate. Any ideas or suggestions would be appreciated.
 
