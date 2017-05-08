@@ -1,4 +1,5 @@
-function argError(...) --- Returns error text if any of the arguments are nil. Pass it your command's arguments.
+function argError(...)
+    --- Returns error text if any of the arguments are nil. Pass it your command's arguments.
     for k, v in pairs({ ... }) do
         if v == nil then
             return "Argument " .. k .. " is nil."
@@ -6,15 +7,18 @@ function argError(...) --- Returns error text if any of the arguments are nil. P
     end
 end
 
-function all(...) --- Returns if all of the given values are truthy.
+function all(...)
+    --- Returns if all of the given values are truthy.
     return select("#", ...) == 1 and ((...) and true or false) or ((...) and all(select(2, ...)))
 end
 
-function any(...) --- Returns if any of the given values are truthy.
+function any(...)
+    --- Returns if any of the given values are truthy.
     return ((...) and true or false) or any(select(2, ...))
 end
 
-function mapIterative(fct, numArgs, ...) --- Allows functions to take unlimited arguments.
+function mapIterative(fct, numArgs, ...)
+    --- Allows functions to take unlimited arguments.
     assert(type(fct) == "function" and type(numArgs) == "number")
     if numArgs == 0 then
         fct()
@@ -37,7 +41,8 @@ function mapIterative(fct, numArgs, ...) --- Allows functions to take unlimited 
     return unpack(returns)
 end
 
-function mapRecursive(fct, numArgs, ...) --- Allows functions to take unlimited arguments.
+function mapRecursive(fct, numArgs, ...)
+    --- Allows functions to take unlimited arguments.
     assert(type(fct) == "function" and type(numArgs) == "number")
     local results = {}
     local function innerWrap(fct, numArgs, results, args)
@@ -60,22 +65,24 @@ function mapRecursive(fct, numArgs, ...) --- Allows functions to take unlimited 
 
     local tbl = innerWrap(fct, numArgs, results, { ... })
     local tblLen = #tbl
-    for i = 1, tblLen / 2 do --Reverse the table, since inserting it backwards is n(n-i) iterations, but reversing it is n/2.
+    for i = 1, tblLen / 2 do
+        --Reverse the table, since inserting it backwards is n(n-i) iterations, but reversing it is n/2.
         tbl[i], tbl[tblLen - i + 1] = tbl[tblLen - i + 1], tbl[i] --Swap the first half of the elements with the last half
     end
     return unpack(tbl)
 end
-
 map = mapRecursive --mapRecursive is faster, unsurprisingly, as a good recursion implementation often is.
 
 local oldmath = {}
 oldmath.floor = math.floor
-function math.floor(...) --- Same as default in Lua, but it takes as many values as it needs.
+function math.floor(...)
+    --- Same as default in Lua, but it takes as many values as it needs.
     return map(oldmath.floor, 1, ...)
 end
 
 oldmath.ceil = math.ceil
-function math.ceil(...) --- Same as default in Lua, but it takes as many values as it needs.
+function math.ceil(...)
+    --- Same as default in Lua, but it takes as many values as it needs.
     return map(oldmath.ceil, 1, ...)
 end
 
@@ -84,20 +91,28 @@ function oldmath.round(num)
     return lowNum + (num - lowNum < .5 and 0 or 1)
 end
 
-function math.round(...) --- I have no idea why this isn't in Lua. Also takes as many values as it needs.
+function math.round(...)
+    --- I have no idea why this isn't in Lua. Also takes as many values as it needs.
     return map(oldmath.round, 1, ...)
 end
 
-function math.frandom(low, high) --- Works like math.random(low,high), but returns a float instead of an int.
-    return math.random(low - (high and 0 or 1), high and high - 1 or nil) + math.random()
+function math.frandom(low, high)
+    --- Works like math.random(low,high), but returns a float instead of an int.
+    if high then
+        return math.random((low or 1) - (high and 0 or 1), high - 1) + math.random()
+    else
+        return (low and low > 1 and math.random(low - 1) or low) + math.random()
+    end
 end
 
 stringx = stringx or {}
-function stringx.indexOf(str, char, index) --- Works like String.indexOf() in Java without pattern recognition.
+function stringx.indexOf(str, char, index)
+    --- Works like String.indexOf() in Java without pattern recognition.
     return str:find(char, index, true)
 end
 
-function stringx.lastIndexOf(str, char, index) --- Works like String.lastIndexOf() in Java without pattern recognition.
+function stringx.lastIndexOf(str, char, index)
+    --- Works like String.lastIndexOf() in Java without pattern recognition.
     index = index or 1
     local charLen = #char
     for i = #str - charLen + index, 1, -1 do
@@ -107,12 +122,14 @@ function stringx.lastIndexOf(str, char, index) --- Works like String.lastIndexOf
     end
 end
 
-function stringx.findLast(str, char, index, plain) --- Works like string.find, but from the back to the front. If you're using a lua pattern, make the lua pattern work for the reversed string.
+function stringx.findLast(str, char, index, plain)
+    --- Works like string.find, but from the back to the front. If you're using a lua pattern, make the lua pattern work for the reversed string.
     local lastIndex, lastIndexEnd = str:reverse():find((plain and char:reverse() or char), index, plain)
     return lastIndex and #str - lastIndexEnd + 1, #str - lastIndex + 1
 end
 
-function stringx.split(str, char) --- Converts str into a table given char as a delimiter. Works like String.split() in Java without pattern recognition.
+function stringx.split(str, char)
+    --- Converts str into a table given char as a delimiter. Works like String.split() in Java without pattern recognition.
     local tbl = {}
     local findChar, findCharEnd = str:find(char, nil, true)
     if findChar then
@@ -131,7 +148,8 @@ function stringx.split(str, char) --- Converts str into a table given char as a 
     return tbl
 end
 
-function stringx.psplit(str, char) --- Converts str into a table given char as a delimiter. Works like String.split() in Java with pattern recognition.
+function stringx.psplit(str, char)
+    --- Converts str into a table given char as a delimiter. Works like String.split() in Java with pattern recognition.
     local tbl = {}
     local findChar, findCharEnd = str:find(char, nil, true)
     if findChar then
@@ -150,22 +168,26 @@ function stringx.psplit(str, char) --- Converts str into a table given char as a
     return tbl
 end
 
-function stringx.splitFirst(str, char) --- Returns the characters before and after the first instance of char in str without pattern recognition.
+function stringx.splitFirst(str, char)
+    --- Returns the characters before and after the first instance of char in str without pattern recognition.
     local index, indexEnd = stringx.indexOf(str, char)
     return str:sub(1, index), str:sub(indexEnd + 1)
 end
 
-function stringx.splitLast(str, char) --- Returns the characters before and after the last instance of char in str without pattern recognition.
+function stringx.splitLast(str, char)
+    --- Returns the characters before and after the last instance of char in str without pattern recognition.
     local index, indexEnd = stringx.lastIndexOf(str, char)
     return str:sub(1, index), str:sub(indexEnd + 1)
 end
 
-function stringx.psplitFirst(str, char) --- Returns the characters before and after the first instance of char in str with pattern recognition.
+function stringx.psplitFirst(str, char)
+    --- Returns the characters before and after the first instance of char in str with pattern recognition.
     local index, indexEnd = str:find(char)
     return str:sub(1, index), str:sub(indexEnd + 1)
 end
 
-function stringx.psplitLast(str, char) --- Returns the characters before and after the last instance of char in str with pattern recognition.
+function stringx.psplitLast(str, char)
+    --- Returns the characters before and after the last instance of char in str with pattern recognition.
     local index, indexEnd = stringx.findLast(str, char)
     return str:sub(1, index), str:sub(indexEnd + 1)
 end
@@ -179,7 +201,8 @@ function tablex.indexOf(tbl, element)
         for k, v in pairs(tbl) do
             if type(v) == "table" then
                 local index = searchTbl(v, element) --Recursive search
-                if index ~= nil then --Can't just do a not, because false is fine.
+                if index ~= nil then
+                    --Can't just do a not, because false is fine.
                     indices[#indices + 1] = k --If you just inserted it at index 1, it wouldn't be backwards, but where's the fun in that?
                     return indices
                 else
@@ -197,7 +220,8 @@ function tablex.indexOf(tbl, element)
         if type(v) == "table" then
             local indices = { k }
             local results = searchTbl(v, element)
-            for i = #results, 1, -1 do --searchTbl returns the indices in reverse, so if you insert them backwards, it's correct.
+            for i = #results, 1, -1 do
+                --searchTbl returns the indices in reverse, so if you insert them backwards, it's correct.
                 indices[#indices + 1] = results[i]
             end
             return indices
@@ -214,7 +238,8 @@ tablex.find = tablex.indexOf --Alias
 --It could be done by traversing it once, keeping track of the keys, and traversing it in the reverse key order,
 --But that's pretty inefficient, and shouldn't be needed.
 
-function tablex.merge(t1, t2) --- Merges tables, without any advanced functionality, like metatable merging.
+function tablex.merge(t1, t2)
+    --- Merges tables, without any advanced functionality, like metatable merging.
     for k, v in pairs(t2) do
         if type(v) == "table" and type(t1[k]) == "table" then
             tablex.merge(t1[k], t2[k])
@@ -233,9 +258,12 @@ function tablex.get(...)
 end
 
 --Modified from penlight. https://github.com/stevedonovan/Penlight/blob/master/lua/pl/tablex.lua
-function tablex.equals(tbl1, tbl2, ignoreMetatable, threshold) --- Returns if two tables are the same, including sub-tables.
+function tablex.equals(tbl1, tbl2, ignoreMetatable, threshold)
+    --- Returns if two tables are the same, including sub-tables.
     local type1 = type(tbl1)
-    if type1 ~= type(tbl2) then return false end
+    if type1 ~= type(tbl2) then
+        return false
+    end
     --Non-table types can be directly compared
     if type1 ~= "table" then
         if type1 == "number" and threshold then
@@ -271,7 +299,8 @@ end
 -- Modified from penlight. https://github.com/stevedonovan/Penlight/blob/master/lua/pl/tablex.lua
 function tablex.copy(tbl, errorIfNotTable)
     if type(tbl) ~= "table" then
-        if errorIfNotTable then --Silently returns the original table by default.
+        if errorIfNotTable then
+            --Silently returns the passed value by default.
             error(("expected table, got %s"):format(type(tbl)))
         end
         return tbl
@@ -286,3 +315,73 @@ function tablex.copy(tbl, errorIfNotTable)
     setmetatable(copiedTbl, getmetatable(tbl))
     return copiedTbl
 end
+
+function tablex.reverse(tbl)
+    ---Reverses a table in-place.
+    local tblLen = #tbl
+    for i = 1, tblLen / 2 do
+        --Reverse the table, since inserting it backwards is n(n-i) iterations, but reversing it is n/2.
+        tbl[i], tbl[tblLen - i + 1] = tbl[tblLen - i + 1], tbl[i] --Swap the first half of the elements with the last half
+    end
+end
+
+---Like next(), but returns the elements in random order.
+--useIPairs makes it like ipairs(),
+--tblMutable allows it to work on mutable tables.
+local function randNext(tbl, useIPairs, tblMutable)
+    local tbl = tbl
+    if tblMutable then
+        -- If the table is mutable, copy it to avoid modification.
+        tbl = tablex.copy(tbl)
+    end
+    local iter
+    if useIPairs then
+        iter = ipairs
+    else
+        iter = pairs
+    end
+    return coroutine.wrap(function()
+        local key, value
+        local keys = {}
+        local keysLen = 0
+        for k in iter(tbl) do
+            --Make a table of all of the keys in the table.
+            keysLen = keysLen + 1
+            keys[keysLen] = k
+        end
+        for i = 1, keysLen do
+            local randIndex = math.random(1, keysLen) --Grab a random key from the remaining keys.
+            keys[randIndex], keys[keysLen] = keys[keysLen], keys[randIndex] --Swap the random and last element
+            key = keys[keysLen] --Grab the element before it's removed
+            keys[keysLen] = nil --Remove the last element, which is O(1), where table.remove() is O(n)
+            keysLen = keysLen - 1 --Update the length, because decrementing is cheaper than table length lookup.
+            coroutine.yield(key, tbl[key]) --Yield the key and value.
+        end
+    end)
+end
+
+local function randPairs(tbl, i, tblMutable)
+    return randNext(tbl, i, tblMutable), tbl, 1
+end
+
+---Like pairs(), but returns the elements in random order.
+function randomPairs(tbl, tblMutable)
+    return randPairs(tbl, false, tblMutable)
+end
+
+---Like ipairs(), but returns the elements in random order.
+function randomIPairs(tbl, tblMutable)
+    return randPairs(tbl, true, tblMutable)
+end
+
+---Like next(), but returns the elements in random order.
+function randomNext(tbl, tblMutable)
+    return randNext(tbl, false, tblMutable)
+end
+
+---Like the next() equivalent for ipairs(), but returns the elements in random order.
+function randomINext(tbl, tblMutable)
+    return randNext(tbl, true, tblMutable)
+end
+
+return true

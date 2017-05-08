@@ -1,6 +1,8 @@
 --Settings File API used to parse and interpret and save settings files. 
 --Created by bwhodle, edited by moomoomoo3O9
 --Forum post: http://www.computercraft.info/forums2/index.php?/topic/14311-preferences-settings-configuration-store-them-all-settings-file-api/
+
+--DEPRECATED.
 local function trimComments(line)
     local commentstart = #line
     for i = 1, #line do
@@ -104,6 +106,7 @@ function config.save(path)
             file.writeLine("")
             file.writeLine("[" .. k .. "]")
             for j, l in pairs(v) do
+                l = tostring(l)
                 if config.comment and config.comment[k] and config.comment[k][j] then
                     file.writeLine("; " .. config.comment[k][j])
                 end

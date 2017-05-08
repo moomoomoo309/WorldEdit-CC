@@ -221,6 +221,7 @@ local function merge(tbl, tbl2)
 end
 
 return {
+    name = "serpent",
     _NAME = "serpent",
     _COPYRIGHT = "Paul Kulchenko",
     _DESCRIPTION = "Lua serializer and pretty printer",
