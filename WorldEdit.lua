@@ -585,22 +585,6 @@ function WE.selectLargeArea(x1, y1, z1, x2, y2, z2, volume, printProgress)
     return blockInfo
 end
 
-local function getFlatSelection(Selection)
-    --- Iterates through a selection and converts it to 2D (adds the X,Z if they don't already exist)
-    local sel = { pos1 = selection.pos1, pos2 = selection.pos2, type = "flat" }
-    sel[1] = selection[1]
-    for i = 1, #WE.Selection do
-        for j = 1, #sel do
-            if selection[i].x == sel[j].x and selection[i].z == sel[j].z then
-                break
-            elseif j == #sel then
-                sel[#sel + 1] = { x = selection[i].x, z = selection[i].z }
-            end
-        end
-    end
-    return sel
-end
-
 function WE.convertName(tbl, tbl2)
     --- Change block names into block IDs. May convert to minecraft names later.
     if tbl and tbl2 then
