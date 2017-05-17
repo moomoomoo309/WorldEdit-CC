@@ -50,7 +50,7 @@ function mapRecursive(fct, numArgs, ...)
         for i = argsLen, argsLen - numArgs + 1, -1 do
             tblLen = tblLen + 1
             tbl[tblLen] = args[i]
-            args[argsLen] = nil --Remove the last argument, so to avoid a table.remove() call (which is n-i, where this is O(1))
+            args[argsLen] = nil --Remove the last argument, so to avoid a table.remove() call (which is O(n-i), where this is O(1))
             argsLen = argsLen - 1
         end
         for i = 1, tblLen / 2 do
@@ -194,22 +194,26 @@ end
 
 tablex = {}
 --- Returns the index of element in tbl, or nil if no such index exists.
--- Returns the indices as a table as {ind1,ind2,...indN} for tbl[ind1][ind2]...[indN].
+--- Returns the indices as a table as {ind1,ind2,...,indN} for tbl[ind1][ind2]...[indN].
 function tablex.indexOf(tbl, element)
-    local indices = {}
+    local indices, indicesLen = {}, 1
     local function searchTbl(tbl, element)
         for k, v in pairs(tbl) do
             if type(v) == "table" then
                 local index = searchTbl(v, element) --Recursive search
                 if index ~= nil then
-                    --Can't just do a not, because false is fine.
-                    indices[#indices + 1] = k --If you just inserted it at index 1, it wouldn't be backwards, but where's the fun in that?
+                    --Can't do "if not index", because false is allowed.
+                    --Inserting it at index 1 is O(n), this is O(1). That results in O(n) total,
+                    --rather than O(n^2) to insert it O(n) each time.
+                    indices[indicesLen] = k
+                    indicesLen = indicesLen + 1
                     return indices
                 else
                     return nil
                 end
             elseif v == element then
-                indices[#indices + 1] = k
+                indices[indicesLen] = k
+                indicesLen = indicesLen + 1
                 return indices
             end
         end
@@ -238,6 +242,53 @@ tablex.find = tablex.indexOf --Alias
 --It could be done by traversing it once, keeping track of the keys, and traversing it in the reverse key order,
 --But that's pretty inefficient, and shouldn't be needed.
 
+local function doNothing()
+end
+
+function tablex.walk(tbl)
+    ---"Walks" through a table, I.E. Iterates through an N-deep table as if it were a flat table. Returns key(s) and value.
+    ---Use it like pairs() or ipairs() in a for loop. The key(s) will always be in a table.
+    local indices = {}
+    local indicesLen = 1
+    local function appendKey(indices, indicesLen, key)
+        --Always return copies of the table, since it will be modified within the coroutine.
+        local newIndices = {}
+        for i = 1, indicesLen-1 do
+            newIndices[i] = indices[i]
+        end
+        --Append key, but since no more values will be appended to this copy, indicesLen does not need to be incremented.
+        newIndices[indicesLen] = key
+        return newIndices
+    end
+    local searchTblWrapper
+
+    local function searchTbl(tbl, indices, indicesLen)
+        --Make a copy of indices, so each reference frame of this function has its own copy of indices.
+        local indicesCopy = {}
+        for i = 1, indicesLen-1 do
+            indicesCopy[i] = indices[i]
+        end
+        for k, v in pairs(tbl) do
+            if type(v) == "table" then
+                indicesCopy[indicesLen] = k --Add the current key into the indices.
+                for _ in searchTblWrapper(v, indicesCopy, indicesLen+1), v, nil do
+                    doNothing() --IntelliJ doesn't like empty for loops, even though it makes shorter code in this case.
+                end
+            else
+                coroutine.yield(appendKey(indicesCopy, indicesLen, k), v)
+            end
+        end
+    end
+
+    searchTblWrapper = function(tbl, indices, indicesLen)
+        return function()
+            searchTbl(tbl, indices, indicesLen)
+        end
+    end
+
+    return coroutine.wrap(searchTblWrapper(tbl, indices, indicesLen)), tbl, nil
+end
+
 function tablex.merge(t1, t2)
     --- Merges tables, without any advanced functionality, like metatable merging.
     for k, v in pairs(t2) do
@@ -251,8 +302,8 @@ function tablex.merge(t1, t2)
 end
 
 --- This is what you would give the results from table.indexOf() to.
--- The first argument should be the table being accessed, the following arguments should be the indices in order.
--- Example use: To access tbl.bacon[a][5].c, use "tablex.get(tbl,unpack{"bacon",a,5,"c"})" or "tablex.get(tbl,"bacon",a,5,"c")"
+--- The first argument should be the table being accessed, the following arguments should be the indices in order.
+--- Example use: To access tbl.bacon[a][5].c, use "tablex.get(tbl,unpack{"bacon",a,5,"c"})" or "tablex.get(tbl,"bacon",a,5,"c")"
 function tablex.get(...)
     return select("#", ...) >= 3 and tablex.get((...)[select(2, ...)], select(3, ...)) or (...)[select(2, ...)]
 end
@@ -296,12 +347,12 @@ function tablex.equals(tbl1, tbl2, ignoreMetatable, threshold)
 end
 
 --- Copies the value of tbl1 to tbl2 instead of making a pointer.
--- Modified from penlight. https://github.com/stevedonovan/Penlight/blob/master/lua/pl/tablex.lua
+--- Modified from penlight. https://github.com/stevedonovan/Penlight/blob/master/lua/pl/tablex.lua
 function tablex.copy(tbl, errorIfNotTable)
     if type(tbl) ~= "table" then
         if errorIfNotTable then
             --Silently returns the passed value by default.
-            error(("expected table, got %s"):format(type(tbl)))
+            error(("Expected table, got %s"):format(type(tbl)))
         end
         return tbl
     end
@@ -316,35 +367,38 @@ function tablex.copy(tbl, errorIfNotTable)
     return copiedTbl
 end
 
-function tablex.reverse(tbl)
-    ---Reverses a table in-place.
+function tablex.reverse(tbl, copy)
+    ---Reverses a table. If copy is false, reverse in-place, otherwise make a new table.
     local tblLen = #tbl
-    for i = 1, tblLen / 2 do
-        --Reverse the table, since inserting it backwards is n(n-i) iterations, but reversing it is n/2.
-        tbl[i], tbl[tblLen - i + 1] = tbl[tblLen - i + 1], tbl[i] --Swap the first half of the elements with the last half
+    if not copy then
+        for i = 1, tblLen / 2 do
+            --Reverse the table, since inserting it backwards is n(n-i) iterations, but reversing it is n/2.
+            tbl[i], tbl[tblLen - i + 1] = tbl[tblLen - i + 1], tbl[i] --Swap the first half of the elements with the last half
+        end
+        return tbl
+    else
+        local newTbl = {}
+        for i = 1, tblLen do
+            newTbl[i] = tbl[tblLen-i+1]
+        end
+        return newTbl
     end
 end
 
 ---Like next(), but returns the elements in random order.
---useIPairs makes it like ipairs(),
---tblMutable allows it to work on mutable tables.
+---useIPairs makes it like ipairs(),
+---tblMutable allows it to work on mutable tables.
 local function randNext(tbl, useIPairs, tblMutable)
     local tbl = tbl
     if tblMutable then
         -- If the table is mutable, copy it to avoid modification.
         tbl = tablex.copy(tbl)
     end
-    local iter
-    if useIPairs then
-        iter = ipairs
-    else
-        iter = pairs
-    end
     return coroutine.wrap(function()
         local key, value
         local keys = {}
         local keysLen = 0
-        for k in iter(tbl) do
+        for k in (useIPairs and ipairs or pairs)(tbl) do
             --Make a table of all of the keys in the table.
             keysLen = keysLen + 1
             keys[keysLen] = k

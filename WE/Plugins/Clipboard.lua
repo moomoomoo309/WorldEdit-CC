@@ -140,7 +140,7 @@ function clipboard.deepCopy(NoOutput, beingReused)
         WE.sendChat "Copying..."
     end
     if not beingReused then
-        WE.px, WE.py, WE.pz = math.floor(WE.getPlayerPos(username)) --GeneralAPI overwrites math.floor() to accept unlimited args.
+        WE.px, WE.py, WE.pz = math.floor(WE.getPlayerPos(WE.username)) --GeneralAPI overwrites math.floor() to accept unlimited args.
     end
     WE.Clipboard.ox = WE.px --Original coords of the player at the time of the copying
     WE.Clipboard.oy = WE.py
@@ -189,7 +189,7 @@ function clipboard.copy(noOutput, beingReused)
         WE.sendChat "Copying..."
     end
     if not beingReused then
-        WE.px, WE.py, WE.pz = math.floor(WE.getPlayerPos(username)) --GeneralAPI overwrites math.floor() to accept unlimited args.
+        WE.px, WE.py, WE.pz = math.floor(WE.getPlayerPos(WE.username)) --GeneralAPI overwrites math.floor() to accept unlimited args.
     end
     WE.Clipboard.ox = WE.px --Original coords of the player at the time of the copying
     WE.Clipboard.oy = WE.py
@@ -332,7 +332,7 @@ end
 
 function clipboard.cut(noOutput, deep)
     --http://wiki.sk89q.com/wiki/WorldEdit/Clipboard#Copying_and_cutting
-    noOutput = noOutput or forceSilent
+    noOutput = noOutput or WE.forceSilent
     print(noOutput)
     clipboard[deep and "deepcopy" or "copy"](noOutput) --Reusing functions makes this much easier. Set it so it won't say "Area Copied", but will say everything else.
     WE.runCommands("set air", true)
@@ -350,7 +350,7 @@ function clipboard.move()
             break
         end
     end
-    WE.px, WE.py, WE.pz = WE.getPlayerPos(username)
+    WE.px, WE.py, WE.pz = WE.getPlayerPos(WE.username)
     for i = 1, #WE.normalArgs do
         for i2 = 1, #directions do
             if WE.normalArgs[i] == directions[i2] then
@@ -372,7 +372,7 @@ function clipboard.move()
         WE.sendChat "Specify an amount to move!"
         return
     elseif moveDistance == 0 then
-        if not forceSilent then
+        if not WE.forceSilent then
             WE.sendChat "Selection moved."
         end
         return
@@ -411,7 +411,7 @@ function clipboard.move()
     end
 
     if fillBlock then
-        local oldMessage, oldForceSilent = OriginalMessage, forceSilent
+        local oldMessage, oldForceSilent = OriginalMessage, WE.forceSilent
         WE.runCommands("set " .. fillBlock, true)
     end
     WE.sendChat "Selection moved."
@@ -458,7 +458,7 @@ function clipboard.stack()
     --http://wiki.sk89q.com/wiki/WorldEdit/Region_operations#Stacking
     local tmpClipboard = {}
     tmpClipboard = tablex.copy(WE.Clipboard)
-    WE.px, WE.py, WE.pz = WE.getPlayerPos(username)
+    WE.px, WE.py, WE.pz = WE.getPlayerPos(WE.username)
     local stackAmt = 0
     for i = 1, #directions do
         for i2 = 1, #WE.normalArgs do
@@ -561,15 +561,15 @@ function clipboard.list()
     end
 end
 
-WE.registerCommand("copy", clipboard.copy, WE.hasSelection, missingPos, "Copies the blocks in the selection into the clipboard. (about 4096 Blocks/tick)", "copy (Takes no arguments)")
-WE.registerCommand("deepcopy", clipboard.deepCopy, WE.hasSelection, missingPos, "Copies the blocks in the selection, including NBT data, into the clipboard. Should not be used with large selections. (1 Block/tick)", "depcopy (Takes no arguments)")
+WE.registerCommand("copy", clipboard.copy, WE.hasSelection, WE.missingPos, "Copies the blocks in the selection into the clipboard. (about 4096 Blocks/tick)", "copy (Takes no arguments)")
+WE.registerCommand("deepcopy", clipboard.deepCopy, WE.hasSelection, WE.missingPos, "Copies the blocks in the selection, including NBT data, into the clipboard. Should not be used with large selections. (1 Block/tick)", "depcopy (Takes no arguments)")
 WE.registerCommand("paste", clipboard.paste, WE.hasNBTSupport, "Puts the current clipboard in the world. -a does not paste air blocks, -ao pastes it at the origin of the clipboard.", "paste [-a] [-ao]")
-WE.registerCommand("move", clipboard.move, WE.hasNBTSupportAndSel, missingPos, "Moves the blocks in the selection in the given direction, or in the direction the player is looking if not specified.", "move (amount) [direction] [-s] (Direction defaults to \"self\")")
-WE.registerCommand("cut", clipboard.cut, WE.hasNBTSupportAndSel, missingPos, "Copies all blocks in the selection into the clipboard, then sets them to air. (about 4096 Blocks/tick)", "cut (Takes no arguments)")
+WE.registerCommand("move", clipboard.move, WE.hasNBTSupportAndSel, WE.missingPos, "Moves the blocks in the selection in the given direction, or in the direction the player is looking if not specified.", "move (amount) [direction] [-s] (Direction defaults to \"self\")")
+WE.registerCommand("cut", clipboard.cut, WE.hasNBTSupportAndSel, WE.missingPos, "Copies all blocks in the selection into the clipboard, then sets them to air. (about 4096 Blocks/tick)", "cut (Takes no arguments)")
 WE.registerCommand("deepcut", function()
     clipboard.cut(false, true)
-end, WE.hasNBTSupportAndSel, missingPos, "Copies all blocks in the selection with their NBT data into the clipboard, then sets them to air. Should not be used with large selections. (1 Block/tick)", "deepcut (Takes no arguments)")
-WE.registerCommand("stack", clipboard.stack, WE.hasNBTSupportAndSel, missingPos, "Repeats the blocks in the selection.", "stack (amount) [direction] (Direction defaults to \"self\")")
+end, WE.hasNBTSupportAndSel, WE.missingPos, "Copies all blocks in the selection with their NBT data into the clipboard, then sets them to air. Should not be used with large selections. (1 Block/tick)", "deepcut (Takes no arguments)")
+WE.registerCommand("stack", clipboard.stack, WE.hasNBTSupportAndSel, WE.missingPos, "Repeats the blocks in the selection.", "stack (amount) [direction] (Direction defaults to \"self\")")
 WE.registerCommand("save", clipboard.save, WE.hasNBTSupport, "Saves a clipboard to a file.", "save (name)")
 WE.registerCommand("rotate", clipboard.rotate, function()
     return type(WE.Clipboard) == "table" and #WE.Clipboard > 0

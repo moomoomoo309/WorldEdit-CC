@@ -2,14 +2,14 @@ local sel = { name = "sel" }
 
 local function getFlatSelection(Selection)
     --- Iterates through a selection and converts it to 2D (adds the X,Z if they don't already exist)
-    local sel = { pos1 = selection.pos1, pos2 = selection.pos2, type = "flat" }
-    sel[1] = selection[1]
-    for i = 1, #WE.Selection do
+    local sel = { pos1 = Selection.pos1, pos2 = Selection.pos2, type = "flat" }
+    sel[1] = Selection[1]
+    for i = 1, #Selection do
         for j = 1, #sel do
-            if selection[i].x == sel[j].x and selection[i].z == sel[j].z then
+            if Selection[i].x == sel[j].x and Selection[i].z == sel[j].z then
                 break
             elseif j == #sel then
-                sel[#sel + 1] = { x = selection[i].x, z = selection[i].z }
+                sel[#sel + 1] = { x = Selection[i].x, z = Selection[i].z }
             end
         end
     end
@@ -17,7 +17,7 @@ local function getFlatSelection(Selection)
 end
 
 --Returns a heightmap for the selected area.
-function heightmap()
+local function heightmap()
     local map = {}
     local cnt = 1
     local blocksChecked = 0
@@ -64,7 +64,7 @@ function heightmap()
     return map
 end
 
---Parses the message for set and replace
+---Parses the message for set and replace
 local function parseBlockPatterns()
     local function splitTbls(text, needsPercent)
         local BlocksTbl = {}
@@ -147,9 +147,9 @@ local function parseBlockPatterns()
         end
     end
     if #WE.normalArgs == 2 then
-        return Blocks, Meta, Blocks2, Meta2, Percentages, Pipes
+        return Blocks, Meta, Blocks2, Meta2, Percentages, TotalPercent, Pipes
     else
-        return Blocks2, Meta2, Percentages, Pipes
+        return Blocks2, Meta2, Percentages, TotalPercent, Pipes
     end
 end
 
@@ -158,17 +158,8 @@ function sel.distr()
     --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Finding_the_block_distribution
     local blockCount = {}
     local TotalCount = 0
-    local useClipboard, useData, useAir
-    for i = 1, #WE.shortSwitches do
-        local currentSwitch = WE.shortSwitches[i]
-        if currentSwitch == "-c" then
-            useClipboard = true
-        elseif currentSwitch == "-d" then
-            useData = true
-        elseif currentSwitch == "-a" then
-            useAir = true
-        end
-    end
+    local useClipboard, useData, useAir = WE.shortSwitches.c, WE.shortSwitches.d, WE.shortSwitches.a
+
     local tbl = (useClipboard and #WE.Clipboard > 0) and WE.Clipboard or WE.Selection
     local blocksTbl
     if not useClipboard and WE.isCommandComputer then
@@ -222,12 +213,12 @@ function sel.distr()
         end
     end
     for k, v in pairs(blockCount) do
-        if not message:find "-d" then
-            WE.sendChat(v .. ("  (%.2f%%) "):format(v / TotalCount * 100) .. (BlockNames[k] and (BlockNames[k][1]:sub(1, 1):upper() .. BlockNames[k][1]:sub(2):gsub("_", " ")) or k) .. " #" .. k) --This takes the first entry in the BlockNames table and force capitalizes the first letter.
+        if not WE.shortSwitches.d then
+            WE.sendChat(v .. ("  (%.2f%%) "):format(v / TotalCount * 100) .. (WE.BlockNames[k] and (WE.BlockNames[k][1]:sub(1, 1):upper() .. WE.BlockNames[k][1]:sub(2):gsub("_", " ")) or k) .. " #" .. k) --This takes the first entry in the WE.BlockNames table and force capitalizes the first letter.
         else
             for k2, v2 in pairs(i) do
                 --Go through all meta values
-                WE.sendChat(v2 .. ("  (%.2f%%) "):format(v2 / TotalCount * 100) .. (BlockNames[k] and (BlockNames[k][1]:sub(1, 1):upper() .. BlockNames[k][1]:sub(2):gsub("_", " ")) or k) .. " #" .. k .. ":" .. k2) --Check the comment before last! This one just has a ":[Metadata]" at the end!
+                WE.sendChat(v2 .. ("  (%.2f%%) "):format(v2 / TotalCount * 100) .. (WE.BlockNames[k] and (WE.BlockNames[k][1]:sub(1, 1):upper() .. WE.BlockNames[k][1]:sub(2):gsub("_", " ")) or k) .. " #" .. k .. ":" .. k2) --Check the comment before last! This one just has a ":[Metadata]" at the end!
             end
         end
     end
@@ -240,22 +231,22 @@ function sel.count()
         return
     end
     local checkMeta = WE.shortSwitches.d
-    local findColon, findColonEnd = message:find(":", nil, true) --Find the colon for the meta
-    local findSpace, findSpaceEnd = message:find(" ", nil, true) --Find the space to get the argument
+    local findColon, findColonEnd = WE.message:find(":", nil, true) --Find the colon for the meta
+    local findSpace, findSpaceEnd = WE.message:find(" ", nil, true) --Find the space to get the argument
     if findColon and not checkMeta then
         WE.sendChat "Use the -d flag for data values!"
         return false
     end --Why yes, this IS the ConvertName() function repurposed!
     local ID, Meta
     if checkMeta and findColon then
-        ID = message:sub(findSpace + 1, findColon - 1)
-        Meta = message:sub(findColon + 1)
+        ID = WE.message:sub(findSpace + 1, findColon - 1)
+        Meta = WE.message:sub(findColon + 1)
     elseif findSpace then
-        ID = message:sub(findSpace + 1)
+        ID = WE.message:sub(findSpace + 1)
         Meta = nil --No meta means no meta!
     end
     if not tonumber(ID) then
-        for k, v in pairs(BlockNames) do
+        for k, v in pairs(WE.BlockNames) do
             if tablex.indexOf(v, ID) then
                 if k == 17 then
                     if ID == "pine" then
@@ -283,7 +274,7 @@ function sel.count()
                     ID = k
                     break
                 end
-            elseif next(BlockNames, k) == nil then
+            elseif next(WE.BlockNames, k) == nil then
                 WE.sendChat(("Invalid Block: \"%s\". Was it a typo?"):format(ID))
                 return false
             end
@@ -304,17 +295,15 @@ function sel.count()
             if (tbl and WE.MCNameToID(tbl[x][y][z].name) == ID and (Meta < 0 or tbl[x][y][z].metadata == Meta)) or (WE.getBlockID(x, y, z) == ID and WE.getMetadata(x, y, z) == Meta) then
                 Num = Num + 1
             end
-        else
-            if WE.getBlockID(x, y, z) == ID or WE.MCNameToID(tbl[x][y][z].name) == ID then
-                --If there isn't, don't.
-                Num = Num + 1
-            end
+        elseif WE.getBlockID(x, y, z) == ID or WE.MCNameToID(tbl[x][y][z].name) == ID then
+            --If there isn't, don't.
+            Num = Num + 1
         end
     end
     if not Meta then
-        WE.sendChat(("Counted: %d %s%s"):format(Num, message:sub(findSpace + 1, findSpace + 1):upper(), message:sub(findSpace + 2))) --Tell how many counted and it spits back out what block the player said it was. No need to reference BlockNames!
+        WE.sendChat(("Counted: %d %s%s"):format(Num, WE.message:sub(findSpace + 1, findSpace + 1):upper(), WE.message:sub(findSpace + 2))) --Tell how many counted and it spits back out what block the player said it was. No need to reference WE.BlockNames!
     else
-        WE.sendChat(("Counted: %d %s%s"):format(Num, message:sub(findSpace + 1, findSpace + 1):upper(), message:sub(findSpace + 2, findColon - 1)))
+        WE.sendChat(("Counted: %d %s%s"):format(Num, WE.message:sub(findSpace + 1, findSpace + 1):upper(), WE.message:sub(findSpace + 2, findColon - 1)))
     end
 end
 
@@ -329,14 +318,14 @@ end
 
 function sel.set(silent)
     --http://wiki.sk89q.com/wiki/WorldEdit/Region_operations#Setting_blocks
-    local Blocks2, Meta2, Percentages, Pipes = parseBlockPatterns()
+    local Blocks2, Meta2, Percentages, TotalPercent, Pipes = parseBlockPatterns()
     if not WE.convertName(Blocks2, Meta2) then
         WE.sendChat "Could not convert names. Was there a typo?"
         return
     end
 
     local iterations = 0
-    silent = silent or forceSilent
+    silent = silent or WE.forceSilent
 
     if #WE.Selection > 0 then
         if not silent then
@@ -382,14 +371,14 @@ end
 
 function sel.replace(silent)
     --http://wiki.sk89q.com/wiki/WorldEdit/Region_operations#Replacing_blocks
-    local Blocks, Meta, Blocks2, Meta2, Percentages, Pipes = parseBlockPatterns(WE.normalArgs)
+    local Blocks, Meta, Blocks2, Meta2, Percentages, TotalPercent, Pipes = parseBlockPatterns(WE.normalArgs)
     if not all(WE.convertName(Blocks, Meta), WE.convertName(Blocks2, Meta2)) then
         WE.sendChat "Could not convert names. Was there a typo?"
         return
     end
 
     local iterations = 0
-    silent = silent or forceSilent
+    silent = silent or WE.forceSilent
     local tbl
     if #WE.Selection > 0 then
         for i in (WE.RandomSetOrder and randomIPairs or ipairs)(WE.Selection) do
@@ -447,7 +436,7 @@ function sel.naturalize(silent)
     --Makes the given area look more natural.
     local iterations = 0
     local Map = heightmap()
-    silent = silent or forceSilent
+    silent = silent or WE.forceSilent
     local BlocksTbl
     if WE.isCommandComputer then
         BlocksTbl = WE.selectLargeArea(WE.Selection.pos1.x, WE.Selection.pos1.y, WE.Selection.pos1.z, WE.Selection.pos2.x, WE.Selection.pos2.y, WE.Selection.pos2.z, 4096, true)
@@ -479,12 +468,13 @@ end
 
 function sel.overlay(silent)
     --Overlays the selection with the given block
+    local Blocks2, Meta2, Percentages, TotalPercent, Pipes = parseBlockPatterns()
     local count = 0
     local iterations = 0
     local Map = heightmap()
     local BlockType
     local hasSet = false
-    silent = silent or forceSilent
+    silent = silent or WE.forceSilent
     for i in (WE.RandomSetOrder and randomIPairs or ipairs)(Map) do
         if tonumber(Map[i].y) and (SelectionType == "cuboid" and tonumber(Map[i].y) <= math.max(WE.Selection.pos1.y, WE.Selection.pos2.y) or SelectionType ~= "cuboid") then
             local x, y, z = Map[i].x, Map[i].y + 1, Map[i].z
@@ -520,7 +510,7 @@ end
 function sel.shift(silent)
     --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Shifting_your_selection
     local dir = false
-    silent = silent or forceSilent
+    silent = silent or WE.forceSilent
     local shiftAmt, direction
     for i = 1, #WE.normalArgs do
         if tonumber(WE.normalArgs[i]) then
@@ -568,7 +558,7 @@ end
 function sel.chunk()
     --- Sets the selection to the chunk the player is in.
     WE.Selection = {}
-    WE.px, WE.py, WE.pz = math.floor(WE.getPlayerPos(username))
+    WE.px, WE.py, WE.pz = math.floor(WE.getPlayerPos(WE.username))
     WE.pos = setmetatable({ pos1 = { x = WE.px - WE.px % 16, y = 0, z = WE.pz - WE.pz % 16 }, pos2 = { x = WE.px - WE.px % 16 + 16, y = 256, z = WE.pz - WE.pz % 16 + 16 } }, getmetatable(WE.pos))
     WE.makeSelection.cuboid()
     WE.Selection.type = "cuboid"
@@ -578,21 +568,21 @@ end
 WE.registerCommand("set", function()
     parseBlockPatterns()
     sel.set()
-end, WE.hasSelection, missingPos, "Sets all blocks in the selection to the given block(s) with the given proportion(s).", "set [probability]block[:meta][,...] (See \"help BlockPatterns\" for more information)")
+end, WE.hasSelection, WE.missingPos, "Sets all blocks in the selection to the given block(s) with the given proportion(s).", "set [probability]block[:meta][,...] (See \"help BlockPatterns\" for more information)")
 WE.registerCommand("replace", function()
     parseBlockPatterns()
     sel.replace()
-end, WE.hasSelection, missingPos, "Replaces all block(s) in the first argument with the block(s) in the second with their given proportion(s).", "replace [probability]block1[:meta1][,...] block2[:meta2][,...] (See \"help BlockPatterns\" for more information)")
-WE.registerCommand("naturalize", sel.naturalize, WE.hasSelection, missingPos, "Makes the terrain look more natural.", "naturalize (Takes no arguments)")
+end, WE.hasSelection, WE.missingPos, "Replaces all block(s) in the first argument with the block(s) in the second with their given proportion(s).", "replace [probability]block1[:meta1][,...] block2[:meta2][,...] (See \"help BlockPatterns\" for more information)")
+WE.registerCommand("naturalize", sel.naturalize, WE.hasSelection, WE.missingPos, "Makes the terrain look more natural.", "naturalize (Takes no arguments)")
 WE.registerCommand("overlay", function()
     parseBlockPatterns()
     WE.convertName()
     sel.overlay()
-end, WE.hasSelection, missingPos, "Overlays the selected terrain with the provided block(s).", "overlay [probability]block[:meta][,...] (See \"help BlockPatterns\" for more information)")
-WE.registerCommand("distr", sel.distr, WE.hasSelection, missingPos, "Prints out the distribution of blocks in the selection. -d splits on meta, -c operates on the clipboard instead of the selection, -a ignores air blocks.", "distr [-d] [-c] [-a]")
-WE.registerCommand("count", sel.count, WE.hasSelection, missingPos, "Counts the number of blocks in the selection. -d flag lets you specify meta in block:meta form.", "count [-d] block[:meta]")
-WE.registerCommand("size", sel.size, WE.hasSelection, missingPos, "Prints the size of the selection, or the clipboard if the -c flag is provided.", "size [-c]")
-WE.registerCommand("shift", sel.shift, WE.hasSelection, missingPos, "Moves the selection by one block in all directions.", "shift (amount) [direction] (Direction defaults to \"self\")")
-WE.registerCommand("chunk", sel.chunk, WE.hasSelection, missingPos, "Changes the selection to the chunk the player is in.", "chunk (Takes no arguments)")
+end, WE.hasSelection, WE.missingPos, "Overlays the selected terrain with the provided block(s).", "overlay [probability]block[:meta][,...] (See \"help BlockPatterns\" for more information)")
+WE.registerCommand("distr", sel.distr, WE.hasSelection, WE.missingPos, "Prints out the distribution of blocks in the selection. -d splits on meta, -c operates on the clipboard instead of the selection, -a ignores air blocks.", "distr [-d] [-c] [-a]")
+WE.registerCommand("count", sel.count, WE.hasSelection, WE.missingPos, "Counts the number of blocks in the selection. -d flag lets you specify meta in block:meta form.", "count [-d] block[:meta]")
+WE.registerCommand("size", sel.size, WE.hasSelection, WE.missingPos, "Prints the size of the selection, or the clipboard if the -c flag is provided.", "size [-c]")
+WE.registerCommand("shift", sel.shift, WE.hasSelection, WE.missingPos, "Moves the selection by one block in all directions.", "shift (amount) [direction] (Direction defaults to \"self\")")
+WE.registerCommand("chunk", sel.chunk, WE.hasSelection, WE.missingPos, "Changes the selection to the chunk the player is in.", "chunk (Takes no arguments)")
 
 return sel

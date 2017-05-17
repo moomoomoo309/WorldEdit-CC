@@ -377,7 +377,21 @@ function cuboid.outset() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Contra
     WE.sendChat("Selection outset " .. amt .. " block" .. ((tonumber(amt) > 1 and "s") or "") .. ".")
 end
 
-WE.registerCommand("inset", cuboid.inset, WE.hasSelection, missingPos)
-WE.registerCommand("outset", cuboid.outset, WE.hasSelection, missingPos)
+function WE.makeSelection.cuboid()
+    --- Makes a cuboid selection given two points are selected.
+    WE.Selection = { pos1 = WE.pos[1], pos2 = WE.pos[2], type = "cuboid" }
+    for x = math.min(WE.pos[1].x, WE.pos[2].x), math.max(WE.pos[1].x, WE.pos[2].x) do
+        for y = math.min(WE.pos[1].y, WE.pos[2].y), math.max(WE.pos[1].y, WE.pos[2].y) do
+            for z = math.min(WE.pos[1].z, WE.pos[2].z), math.max(WE.pos[1].z, WE.pos[2].z) do
+                WE.Selection[#WE.Selection + 1] = { x = x, y = y, z = z }
+            end
+        end
+    end
+    WE.writeSelection()
+    return WE.Selection
+end
+
+WE.registerCommand("inset", cuboid.inset, WE.hasSelection, WE.missingPos)
+WE.registerCommand("outset", cuboid.outset, WE.hasSelection, WE.missingPos)
 
 return cuboid

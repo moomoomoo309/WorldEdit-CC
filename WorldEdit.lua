@@ -5,43 +5,39 @@
 --pos[1].x, pos[1].y, pos[1].z, and pos[2].x, pos[2].y, and pos[2].z are the coordinates of cuboid selections.
 --WE.px, WE.py, and WE.pz are the player's coordinates.
 
---To add a new command, simply add a call to registerCommand(name/names,condition/conditionFunction,ifFunction,elseFunction) in registerCommands,
---And add the help entry in helpText and commandSyntax.
+--To add a new command, simply add a call to registerCommand(name/names,condition/conditionFunction,
+--                                                           ifFunction,elseFunction,helpText,syntax)
+--in registerCommands.
 
 --If you want to use this program in an OS or somehow bootstrap it to another program, instructions are on the bottom of this file.
 
 
 --Local vars, so as to not fill the global namespace
-WE = {}
-WE.Selection = {}
-WE.pos = nil
-WE.isCommandComputer = nil
-local taskAmt
-WE.px, WE.py, WE.pz = nil, nil, nil
-WE.command, WE.normalArgs, WE.namedArgs, WE.shortSwitches, WE.longSwitches = nil, nil, nil, nil, nil
-local firstHpos
-local endProgram
-local username, message, OriginalMessage
-local debug
-local ConfigPath
-WE.ConfigFolder = nil
-WE.ClipboardPath = "Clipboard"
-WE.RandomSetOrder = nil
+WE = {
+    Selection = {},
+    ClipboardPath = "Clipboard", --The maximum number of positions allowed for selection types.
+    blockBlacklist = {},
+    makeSelection = {},
+    plugins = {},
+    maxSel = {},
+    tasks = {},
+    taskFcts = {},
+}
 local ConfigAPIPath = "NewConfigAPI.lua"
 local SelectionPath = "Selection"
 local IDPath = "trustedIDs"
-local PluginPath
+local PluginPath = "Plugins"
+local TaskPath = "Tasks"
 local p, w, pl, ent
-local BlockNames, MCNames, IDs
-WE.pipeBlocks = nil
-local trustedIDs, currentCmds
-WE.blockBlacklist = {}
-WE.cfg = nil
-WE.makeSelection = {}
-WE.plugins = {}
-WE.maxSel = { cuboid = 2, ellipse = 2, poly = 9001 } --The maximum number of positions allowed for selection types.
+local currentCmds
+local firstPos
+local endProgram
+local debug
+local ConfigPath
+local taskAmt
+local _ --All unused variables will use this name!
 
-local function getCommand()
+function WE.getCommand()
     local username, message
     while true do
         local args = { os.pullEvent() } --Get "chat" messages. All chat boxes seem to pass events that start with chat.
@@ -65,14 +61,14 @@ end
 function WE.idToMCName(id, removeMinecraft)
     if tonumber(id) and tonumber(id) <= 175 then
         id = tonumber(id)
-        return (removeMinecraft and MCNames[id]:sub(1, 11) == "minecraft:" and MCNames[id]:sub(11)) or MCNames[id] or id
+        return (removeMinecraft and WE.MCNames[id]:sub(1, 11) == "minecraft:" and WE.MCNames[id]:sub(11)) or WE.MCNames[id] or id
     end
 end
 
 --Converts a block's name to its block ID (vanilla blocks only!)
 function WE.MCNameToID(name, addMinecraft)
     if type(name) == "string" then
-        return tonumber(IDs[((addMinecraft and name:sub(1, 11) ~= "minecraft:" and "minecraft:" .. name) or name)])
+        return tonumber(WE.IDs[((addMinecraft and name:sub(1, 11) ~= "minecraft:" and "minecraft:" .. name) or name)])
     end
 end
 
@@ -82,7 +78,7 @@ function WE.sendChat(...)
     local padding = "    "
     for i = 1, select("#", ...) do
         local v = (select(i, ...))
-        msg = msg .. padding .. (v == nil and "nil" or type(v) == "table" and (serpent and serpent.block(v) or textutils.serialize(v)) or tostring(v))
+        msg = msg .. padding .. (v == nil and "nil" or type(v) == "table" and (WE.plugins.serpent and WE.plugins.serpent.block(v) or textutils.serialize(v)) or tostring(v))
     end
     msg = msg:sub(#padding + 1)
     if msg == "" then
@@ -93,19 +89,19 @@ function WE.sendChat(...)
     else
         for _, v in pairs(p.getPlayerUsernames()) do
             --Send chat to all players
-            p.getPlayerByName(v).WE.sendChat(msg)
+            p.getPlayerByName(v).sendChat(msg)
         end
     end
 end
 
 function WE.getBlockID(x, y, z)
     --- Gets the block ID or the name of the block at the given coordinates.
-    return (not WE.isCommandComputer and w.WE.getBlockID(x, y, z)) or WE.MCNameToID(commands.getBlockInfo(x, y, z).name) or commands.getBlockInfo(x, y, z).name
+    return (not WE.isCommandComputer and WE.getBlockID(x, y, z)) or WE.MCNameToID(commands.getBlockInfo(x, y, z).name) or commands.getBlockInfo(x, y, z).name
 end
 
 function WE.getMetadata(x, y, z)
     --- Gets the meta of the block at the given coordinates
-    return ((not WE.isCommandComputer and w.WE.getMetadata(x, y, z)) or commands.getBlockInfo(x, y, z).metadata)
+    return ((not WE.isCommandComputer and WE.getMetadata(x, y, z)) or commands.getBlockInfo(x, y, z).metadata)
 end
 
 local function setBlockWithoutNBT(x, y, z, id, meta)
@@ -129,6 +125,9 @@ function WE.setBlock(x, y, z, id, meta, NBT)
     if (type(NBT) == "string" and #NBT > 0) or (type(NBT) == "table" and select(2, next(NBT)) ~= nil) then
         taskAmt = taskAmt and taskAmt + 1 or 1
         meta = tonumber(meta)
+        if taskAmt == 4095 then
+            os.pullEvent "taskCount"
+        end
         commands.async.setblock(x, y, z, ((tonumber(id) and (WE.idToMCName(tonumber(id), false))) or id), meta and meta > 0 and meta or 0, "replace", NBT)
     else
         setBlockWithoutNBT(x, y, z, id, meta)
@@ -148,7 +147,7 @@ function WE.blockHasChanged(x, y, z, id, meta, blocksTbl, slow)
                 blockData = commands.getBlockInfo(x, y, z)
             end
         end
-        return tostring(blockData.name) ~= tostring(WE.idToMCName(id) or id) or (meta ~= "-1" and tostring(blockData.metadata) ~= tostring(meta))
+        return tostring(blockData.name) ~= tostring(WE.idToMCName(id) or id) or (tostring(meta) ~= "-1" and tostring(blockData.metadata) ~= tostring(meta))
     end
     coroutine.yield()
     return tostring(WE.getBlockID(x, y, z)) ~= tostring(id) or (meta ~= -1 and tostring(WE.getMetadata(x, y, z)) ~= tostring(meta))
@@ -157,24 +156,6 @@ end
 function WE.blockEquals(x, y, z, id, meta, blocksTbl)
     --- Returns if the given block's ID and metadata equal the block's at the given coords
     return not WE.blockHasChanged(x, y, z, id, meta, blocksTbl)
-end
-
-local taskAmt = 0
-local function taskCounter()
-    --- Makes sure when setting blocks that the task limit is not exceeded.
-    while true do
-        os.pullEvent "task_complete"
-        taskAmt = taskAmt and taskAmt - 1 or 0
-        os.queueEvent "taskCount"
-    end
-end
-
-local function serpentProgress()
-    while true do
-        local _, progress = os.pullEvent "SerpentProgress"
-        progress = tostring(progress)
-        WE.sendChat(("Table serialization %s%% complete."):format(progress:sub(1, progress:find(".", nil, true) + 2)))
-    end
 end
 
 local function numToOrdinalForm(num)
@@ -186,9 +167,9 @@ end
 function WE.getPlayerPos()
     --- Gets the position of the player. Runs fewer commands than getPlayerPositionAndLooking.
     if WE.isCommandComputer then
-        local state, result = commands.tp(username, "~", "~", "~")
+        local state, result = commands.tp(WE.username, "~", "~", "~")
         if state then
-            local returnVal = stringx.split(result[1]:sub(16 + #username), ",")
+            local returnVal = stringx.split(result[1]:sub(16 + #WE.username), ",")
             for i = 1, #returnVal do
                 returnVal[i] = math.floor(tonumber(returnVal[i]:sub(1, math.min(#returnVal[i]))))
             end
@@ -196,20 +177,6 @@ function WE.getPlayerPos()
         end
     end
     return ent.getPosition()
-end
-
-function WE.makeSelection.cuboid()
-    --- Makes a cuboid selection given two points are selected.
-    WE.Selection = { pos1 = WE.pos[1], pos2 = WE.pos[2], type = "cuboid" }
-    for x = math.min(WE.pos[1].x, WE.pos[2].x), math.max(WE.pos[1].x, WE.pos[2].x) do
-        for y = math.min(WE.pos[1].y, WE.pos[2].y), math.max(WE.pos[1].y, WE.pos[2].y) do
-            for z = math.min(WE.pos[1].z, WE.pos[2].z), math.max(WE.pos[1].z, WE.pos[2].z) do
-                WE.Selection[#WE.Selection + 1] = { x = x, y = y, z = z }
-            end
-        end
-    end
-    WE.writeSelection()
-    return WE.Selection
 end
 
 --- pos is the table which holds the positions which bound the selection, and is also a function which sets a position to the player's feet.
@@ -222,7 +189,7 @@ local function resetPos(tbl)
                 WE.pos.firstPos = not WE.pos.firstPos return WE.pos.firstPos
             end)() and 1 or 2) or #WE.pos + 1
             WE.pos[numPosition] = WE.pos[numPosition] or {}
-            WE.pos[numPosition].x, WE.pos[numPosition].y, WE.pos[numPosition].z = WE.getPlayerPos(username)
+            WE.pos[numPosition].x, WE.pos[numPosition].y, WE.pos[numPosition].z = WE.getPlayerPos(WE.username)
             WE.pos[numPosition].y = WE.pos[numPosition].y - 1 --Select the block UNDERNEATH them, not the block they're in.
             WE.pos[numPosition].x, WE.pos[numPosition].y, WE.pos[numPosition].z = math.floor(WE.pos[numPosition].x, WE.pos[numPosition].y, WE.pos[numPosition].z)
             if WE.pos[1] and WE.pos[2] and WE.pos[1].x and WE.pos[2].x and WE.pos[1].y and WE.pos[2].y and WE.pos[1].z and WE.pos[2].z then
@@ -268,20 +235,20 @@ local function readSelection()
     WE.Selection = WE.Selection or {}
 end
 
-local function writeIDs()
+function WE.writeIDs()
     --- Writes the list of trusted rednet IDs to a file.
     if IDPath and IDPath ~= "" then
-        --Load the IDs from file, if they exist.
+        --Load the WE.IDs from file, if they exist.
         local f = fs.open(WE.ConfigFolder .. IDPath, "w")
-        f.write(textutils.serialize(trustedIDs))
+        f.write(textutils.serialize(WE.trustedIDs))
         f.close()
     end
 end
 
-local function readIDs()
+function WE.readIDs()
     --- Reads the list of trusted rednet IDs from a file.
     if SelectionPath and IDPath ~= "" and fs.exists(WE.ConfigFolder .. IDPath) then
-        --Load the IDs from file, if they exist.
+        --Load the WE.IDs from file, if they exist.
         local f = fs.open(WE.ConfigFolder .. IDPath, "r")
         local file = textutils.unserialize(f.readAll())
         f.close()
@@ -449,7 +416,7 @@ local function hpos(numPosition)
         WE.sendChat(("Try and pick a position that'll be used. (1-%d)"):format(WE.maxSel[WE.Selection.type]))
         return
     end
-    local playerInfo = getPlayerPositionAndLooking(username)
+    local playerInfo = getPlayerPositionAndLooking(WE.username)
     local pitch, yaw = playerInfo.rotation.rX, playerInfo.rotation.rY
     --The player's eyes are 1.62 blocks from the ground
     WE.px, WE.py, WE.pz = playerInfo.position.x, playerInfo.position.y + 1.62, playerInfo.position.z
@@ -496,8 +463,8 @@ end
 
 function WE.getFormattedBlockInfos(x, y, z, x2, y2, z2)
     --find the minimum and maximum verticies
-    local minX, minY, minZ = math.floor(math.min(x, x2), math.min(y, y2), math.min(z, z2))
-    local maxX, maxY, maxZ = math.floor(math.max(x, x2), math.max(y, y2), math.max(z, z2))
+    local minX, minY, minZ = math.floor(map(math.min, 2, x, x2, y, y2, z, z2))
+    local maxX, maxY, maxZ = math.floor(map(math.max, 2, x, x2, y, y2, z, z2))
     local tBlockInfos = commands.getBlockInfos(minX, minY, minZ, maxX, maxY, maxZ)
     local tFormattedBlockInfos = {}
     local iTablePosition = 1
@@ -586,11 +553,11 @@ function WE.selectLargeArea(x1, y1, z1, x2, y2, z2, volume, printProgress)
 end
 
 function WE.convertName(tbl, tbl2)
-    --- Change block names into block IDs. May convert to minecraft names later.
+    --- Change block names into block IDs.
     if tbl and tbl2 then
         for i = 1, #tbl do
             if tonumber(tbl[i]) == nil then
-                for k, v in pairs(BlockNames) do
+                for k, v in pairs(WE.BlockNames) do
                     if tablex.find(v, tostring(tbl[i])) then
                         if k == 17 then
                             if tbl[i] == "pine" then
@@ -618,8 +585,8 @@ function WE.convertName(tbl, tbl2)
                             tbl[i] = k
                             break
                         end
-                    elseif next(BlockNames, k) == nil then
-                        --The block is not in BlockNames
+                    elseif next(WE.BlockNames, k) == nil then
+                        --The block is not in WE.BlockNames
                         WE.sendChat(("Invalid block: \"%s\", was it a typo?"):format(tbl[i]))
                         return false
                     end
@@ -632,7 +599,7 @@ end
 
 function WE.getDirection(shouldReturn)
     ---Gets the direction the player is currently looking in.
-    local playerInfo = getPlayerPositionAndLooking(username)
+    local playerInfo = getPlayerPositionAndLooking(WE.username)
     local pitch, yaw = playerInfo.rotation.rX, playerInfo.rotation.rY
     --Convert pitch/yaw into Vec3 from http://stackoverflow.com/questions/10569659/camera-pitch-yaw-to-direction-vector
     local xzLen = -math.cos(math.rad(yaw))
@@ -678,15 +645,14 @@ end
 function WE.hasDirection(str)
     --- Returns whether the given string contains a direction in it
     for _, dir in pairs { "up", "down", "north", "south", "east", "west", "self", "me" } do
-        if str:find(" " .. dir) then
+        if str:find(" " .. dir, nil, true) then
             return true
         end
     end
     return false
 end
 
-
-local sel = function(numPos)
+local function sel(numPos)
     --- Clears the selection at the given position, or altogether.
     numPos = tonumber(numPos) or tonumber(WE.normalArgs[1])
     WE.Selection = {}
@@ -705,14 +671,19 @@ end
 
 local helpText = {
     --Contains all of the help text for each command.
-    blockpatterns = 'A number of commands which take a "block" parameter really take a pattern. Rather than set one single block (by name or ID), a pattern allows you to set more complex patterns. For example, you can set a pattern where each block has a 10% chance of being brick and a 90% chance of being smooth stone.\nBlock probability pattern is specified with a list of block types (supports block:meta) with their respective probability.\nExample: Setting all blocks to a random pattern using a list with percentages (Which do not need to add to 100%):\n"set 15%planks:3,95%3"\nFor a truly random pattern, no probability percentage is needed.\nExample: Setting all blocks to a random pattern using a list without percentages\n"set obsidian,stone"',
+    blockpatterns = [[A number of commands which take a "block" parameter really take a pattern. Rather than set one single block (by name or ID), a pattern allows you to set more complex patterns.
+    For example, you can set a pattern where each block has a 10% chance of being brick and a 90% chance of being smooth stone.
+    Block probability pattern is specified with a list of block types (supports block:meta) with their respective probability.
+    Example: Setting all blocks to a random pattern using a list with percentages (Which do not need to add to 100%):
+    "set 15%planks:3,95%3"
+    For a truly random pattern, no probability percentage is needed.
+    Example: Setting all blocks to a random pattern using a list without percentages
+    "set obsidian,stone"]],
 }
 
-local commandSyntax = {--Contains the syntax for each command.
-}
+local commandSyntax = {} --Contains the syntax for each command.
 
 local sortedHelpKeys = {} --These are used to traverse the table in order. It contains the keys alphabetically.
-table.sort(sortedHelpKeys) --Sort the keys alphabetically
 
 local function titleCase(str)
     return str:sub(1, 1):upper() .. str:sub(2)
@@ -720,12 +691,7 @@ end
 
 local function help()
     --- Prints out help on the given page or for the given command.
-    local command = WE.normalArgs[1] and WE.normalArgs[1]:lower() or 1
-    sortedHelpKeys = {}
-    for k, _ in pairs(helpText) do
-        table.insert(sortedHelpKeys, k)
-    end
-    table.sort(sortedHelpKeys)
+    local command = WE.normalArgs[1] and WE.normalArgs[1]:lower() or "1"
     local commandsPerPage = 8
     local numPages = math.ceil(#sortedHelpKeys / commandsPerPage)
     if tonumber(command) then
@@ -754,22 +720,44 @@ local function help()
 end
 
 local cmds = {} --Holds each command.
-function WE.registerCommand(nameTbl, fct, condition, elseFct, helptext, syntax)
+function WE.registerCommand(names, fct, condition, elseFct, helptext, syntax)
     --- Adds a command to the list.
-    cmds[#cmds + 1] = { names = nameTbl, fct = fct, condition = condition, elseFct = elseFct }
-    if type(nameTbl) == "string" then
-        if not helpText[nameTbl] and not helpText then
-            WE.sendChat(("Missing syntax for command %s."):format(type(nameTbl) == "string" and nameTbl or table.concat(nameTbl, " and ")))
+    cmds[#cmds + 1] = { names = names, fct = fct, condition = condition, elseFct = elseFct }
+    if type(names) == "string" then
+        if not syntax then
+            WE.sendChat(("Missing syntax for command %s."):format(type(names) == "string" and names or table.concat(names, " and ")))
         end
-        helpText[nameTbl] = helptext
-        commandSyntax[nameTbl] = syntax
-    elseif type(nameTbl) == "table" then
-        for k, v in pairs(nameTbl) do
-            if not helpText[nameTbl] and not helpText then
-                WE.sendChat(("Missing help text for command %s."):format(type(nameTbl) == "string" and nameTbl or table.concat(nameTbl, " and ")))
+        if not helptext then
+            WE.sendChat(("Missing help text for %s."):format(type(names) == "string" and names or table.concat(names, " and ")))
+        end
+        helpText[names] = helptext
+        commandSyntax[names] = syntax
+        local insertIndex = 1
+        for i = 1, #sortedHelpKeys do
+            if sortedHelpKeys[i] > names then
+                insertIndex = i
+                break
             end
-            helpText[v] = helptext
-            commandSyntax[v] = syntax
+        end
+        table.insert(sortedHelpKeys, insertIndex, names)
+    elseif type(names) == "table" then
+        for _, commandName in pairs(names) do
+            if not syntax then
+                WE.sendChat(("Missing syntax for command %s."):format(type(names) == "string" and names or table.concat(names, " and ")))
+            end
+            if not helptext then
+                WE.sendChat(("Missing help text for %s."):format(type(names) == "string" and names or table.concat(names, " and ")))
+            end
+            helpText[commandName] = helptext
+            local insertIndex = 1
+            for i = 1, #sortedHelpKeys do
+                if sortedHelpKeys[i] > commandName then
+                    insertIndex = i
+                    break
+                end
+            end
+            table.insert(sortedHelpKeys, insertIndex, commandName)
+            commandSyntax[commandName] = syntax
         end
     end
 end
@@ -843,11 +831,11 @@ end
 
 function WE.runCommands(msgOverride, forceSilentOverride)
     --- Runs the command corresponding to the current message.
-    WE.command, WE.normalArgs, WE.namedArgs, WE.shortSwitches, WE.longSwitches = parseCommandArgs(msgOverride or OriginalMessage) --Get args from command
+    WE.command, WE.normalArgs, WE.namedArgs, WE.shortSwitches, WE.longSwitches = parseCommandArgs(msgOverride or WE.OriginalMessage) --Get args from command
     local oldForceSilent
     if forceSilentOverride ~= nil then
-        oldForceSilent = forceSilent
-        _G.forceSilent = forceSilentOverride
+        oldForceSilent = WE.forceSilent
+        WE.forceSilent = forceSilentOverride
     end
     for i = 1, #cmds do
         local names = ((type(cmds[i].names) == "table" and cmds[i].names) or { cmds[i].names })
@@ -869,7 +857,7 @@ function WE.runCommands(msgOverride, forceSilentOverride)
         end
     end
     if forceSilentOverride ~= nil then
-        _G.forceSilent = oldForceSilent
+        WE.forceSilent = oldForceSilent
     end
 end
 
@@ -888,7 +876,7 @@ local function exportVar(varName, filePath, silent, printFct, shouldPrint)
                 var = var[tonumber(fields[i]) or fields[i]]
             end
         end
-        outString = (type(var) == "table" and ((serpent and serpent.block(var, { numformat = "%d" }))) or textutils.serialize(var)) or (type(var) == "function" and string.dump(var)) or tostring(var)
+        outString = (type(var) == "table" and ((WE.plugins.serpent and WE.plugins.serpent.block(var, { numformat = "%d" }))) or textutils.serialize(var)) or (type(var) == "function" and string.dump(var)) or tostring(var)
         if filePath then
             local success, errMessage = pcall(--Try to write it to a file, and catch and rethrow any errors if necessary.
             function()
@@ -931,27 +919,32 @@ local function loadPlugin(filePath)
     return val
 end
 
-local function loadPlugins()
+local function loadPlugins(pluginFolder, pluginLocation)
     --- Load all of the plugins in the plugin folder.
-    for k, v in pairs(fs.list(WE.ConfigFolder .. PluginPath)) do
-        local success, pluginVal = pcall(loadPlugin, WE.ConfigFolder .. PluginPath .. "/" .. v)
+    pluginFolder = pluginFolder or WE.ConfigFolder .. PluginPath
+    pluginLocation = pluginLocation or WE.plugins
+    if not fs.exists(pluginFolder) then
+        fs.makeDir(pluginFolder) --Make sure the folder exists before loading plugins in it!
+    end
+    for k, v in pairs(fs.list(pluginFolder)) do
+        local success, pluginVal = pcall(loadPlugin, pluginFolder .. "/" .. v)
         if not success then
             WE.sendChat(("Error loading %s! Plugin errored in initialization!\nError Message: %s"):format(v, tostring(pluginVal)))
         else
             if pluginVal == true then
-                WE.plugins[v] = pluginVal
+                pluginLocation[v] = pluginVal
             else
                 if type(pluginVal) ~= "table" or not pluginVal.name then
                     WE.sendChat(("Warning! Plugin at %s did not specify a name! Using its filename instead..."):format(v))
                 else
-                    WE.plugins[pluginVal.name] = pluginVal
+                    pluginLocation[pluginVal.name] = pluginVal
                 end
             end
         end
     end
 end
 
-function missingPos()
+function WE.missingPos()
     --- What to do if position(s) are missing. Used in registering commands a ton.
     WE.sendChat "Set a position first!"
 end
@@ -975,7 +968,15 @@ local function registerCommands()
         sel(#WE.normalArgs > 0 and WE.normalArgs[1] or nil)
     end, nil, nil, "Clears the selection, with an argument specifying which position to clear, or \"vert\", to expand the selection to Y 0-256 or changes the selection type.", "sel [1/2/vert/poly/cuboid/ellipse]")
     WE.registerCommand("pos", function()
-        WE.pos(tonumber(#WE.normalArgs == 1 and #WE.normalArgs[1] > 0 and WE.normalArgs[1] or message:sub(4)))
+        firstPos = firstPos == nil and false or firstPos
+        if #WE.normalArgs == 1 then
+            WE.pos(tonumber(WE.normalArgs[1]))
+        elseif WE.Selection.type == "cuboid" or WE.Selection.type == "ellipse" then
+            firstPos = not firstPos
+            WE.pos(tonumber(firstPos and 1 or 2))
+        else
+            WE.pos(#WE.pos + 1)
+        end
     end, nil, nil, "Selects the position specified using the block the player is standing on.", "pos (position number)")
     WE.registerCommand("pos1", function()
         WE.pos(1)
@@ -984,12 +985,12 @@ local function registerCommands()
         WE.pos(2)
     end, nil, nil, "Selects the second position using the block the player is standing on.", "pos2 (Takes no arguments)")
     WE.registerCommand("hpos", function()
-        firstHpos = firstHpos == nil and false or firstHpos
+        firstPos = firstPos == nil and false or firstPos
         if #WE.normalArgs == 1 then
             hpos(tonumber(WE.normalArgs[1]))
         elseif WE.Selection.type == "cuboid" or WE.Selection.type == "ellipse" then
-            firstHpos = not firstHpos
-            hpos(tonumber(firstHpos and 1 or 2))
+            firstPos = not firstPos
+            hpos(tonumber(firstPos and 1 or 2))
         else
             hpos(#WE.pos + 1)
         end
@@ -1001,29 +1002,29 @@ local function registerCommands()
         hpos(2)
     end, nil, nil, "Selects the second position using the block the player is looking at.", "hpos2 (Takes no arguments)")
     WE.registerCommand("expand", function()
-        if Plugins[WE.Selection.type] then
-            Plugins[WE.Selection.type].expand()
+        if WE.plugins[WE.Selection.type] then
+            WE.plugins[WE.Selection.type].expand()
         else
             WE.sendChat(("Expand not implemented for selection mode %s. This is a bug."):format(WE.Selection.type))
         end
     end, WE.hasSelection, missingPos, "Expands the selection in the given direction, or in the direction the player is looking if not specified.", "expand (amount) [direction] (Direction defaults to \"self\")")
     WE.registerCommand("contract", function()
-        if Plugins[WE.Selection.type] then
-            Plugins[WE.Selection.type].contract()
+        if WE.plugins[WE.Selection.type] then
+            WE.plugins[WE.Selection.type].contract()
         else
             WE.sendChat(("Contract not implemented for selection mode %s. This is a bug."):format(WE.Selection.type))
         end
     end, WE.hasSelection, missingPos, "Contracts the selection in the given direction, or in the direction the player is looking if not specified.", "contract (amount) [direction] (Direction defaults to \"self\")")
     WE.registerCommand("inset", function()
-        if Plugins[WE.Selection.type] then
-            Plugins[WE.Selection.type].inset()
+        if WE.plugins[WE.Selection.type] then
+            WE.plugins[WE.Selection.type].inset()
         else
             WE.sendChat(("Inset not implemented for selection mode %s."):format(WE.Selection.type))
         end
     end, nil, nil, "Shrinks the selection by one block in all directions.", "inset (amount)")
     WE.registerCommand("outset", function()
-        if Plugins[WE.Selection.type] then
-            Plugins[WE.Selection.type].outset()
+        if WE.plugins[WE.Selection.type] then
+            WE.plugins[WE.Selection.type].outset()
         else
             WE.sendChat(("Outset not implemented for selection mode %s."):format(WE.Selection.type))
         end
@@ -1032,14 +1033,14 @@ local function registerCommands()
         WE.sendChat "Goodbye!"
         print "Goodbye!"
         endProgram = true
-    end, "Ends the program.", "exit (Takes no arguments)")
+    end, nil, nil, "Ends the program.", "exit (Takes no arguments)")
     WE.registerCommand({ "reboot", "restart" }, os.reboot, nil, nil, "Reboots the computer.", "Reboot (Takes no arguments)")
     WE.registerCommand({ "help", "?" }, help, nil, nil, "Lists commands or gives information and syntax about specific commands.", "help [page/command name]")
     WE.registerCommand("endchatspam", function()
         WE.sendChat "Spam ended."
         commands.gamerule("commandBlockOutput", false)
     end, WE.isCommandComputer, function()
-        WE.sendChat "There is no chat spam, silly!"
+        WE.sendChat "There is no chat spam!"
     end, "Turns off commandBlockOutput. Only works with command computers.", "endchatspam (Takes no arguments)")
     WE.registerCommand("refresh", loadPlugins, nil, nil, "Re-runs all the files, allowing all changes to take effect.", "refresh (Takes no arguments)")
     WE.registerCommand("clear", function()
@@ -1049,221 +1050,16 @@ local function registerCommands()
     end, nil, nil, "Clears the screen.", "clear (Takes no arguments)")
     WE.registerCommand("exportvar", function()
         exportVar(WE.normalArgs[1], WE.ConfigFolder .. "vars/" .. WE.normalArgs[1], WE.longSwitches.silent, WE.sendChat, true)
-    end, "A debug command which exports the given variable to a file. table indices (string only) may be separated by dots.", "exportVar (variable name/tablename.index1.index2...)")
+    end, nil, nil, "A debug command which exports the given variable to a file. table indices (string only) may be separated by dots.", "exportVar (variable name/tablename.index1.index2...)")
 end
 
-local function getPlayerName()
+function WE.getPlayerName()
     --- Returns the name of the closest player.
     if WE.isCommandComputer then
         local state, result = commands.xp(0, "@p") --The result will be "gave 0 experience to playername"
         if state then
             return result[1]:sub((stringx.findLast(result[1], " ", nil, true)) + 1)
         end
-    end
-end
-
---- lsh, created by Lyqyd, with only a few tweaks by me
--- (mostly bugfixes to get it working without the entirety of the file, and changing the history path)
--- Used for the console input (and on the rednet companion as well)
-local runHistory = {}
-if fs.exists ".history" then
-    local histFile = io.open(".history", "r")
-    if histFile then
-        for line in histFile:lines() do
-            table.insert(runHistory, line)
-        end
-        histFile:close()
-    end
-end
-local sizeOfHistory = #runHistory
-
-local function saveHistory()
-    if #runHistory > sizeOfHistory then
-        local histFile = io.open(".history", "a")
-        if histFile then
-            for i = sizeOfHistory + 1, #runHistory do
-                histFile:write(runHistory[i] .. "\n")
-            end
-            histFile:close()
-        end
-    end
-end
-
-local function customRead(history)
-    term.setCursorBlink(true)
-
-    local line = ""
-    local nHistoryPos
-    local nPos = 0
-
-    local w, h = term.getSize()
-    local sx, sy = term.getCursorPos()
-
-    local function redraw()
-        local nScroll = 0
-        if sx + nPos >= w then
-            nScroll = (sx + nPos) - w
-        end
-
-        term.setCursorPos(sx, sy)
-        term.write(line:sub(nScroll + 1))
-        term.write((" "):rep(math.max(0, w - (#line - nScroll) - sx)))
-        term.setCursorPos(sx + nPos - nScroll, sy)
-    end
-
-    while true do
-        local sEvent, param = os.pullEvent()
-        if sEvent == "char" then
-            line = line:sub(1, nPos) .. param .. line:sub(nPos + 1)
-            nPos = nPos + 1
-            redraw()
-
-        elseif sEvent == "key" then
-            if param == keys.enter then
-                table.insert(runHistory, line)
-                saveHistory()
-                -- Enter
-                break
-
-            elseif param == keys.left then
-                -- Left
-                if nPos > 0 then
-                    nPos = nPos - 1
-                    redraw()
-                end
-
-            elseif param == keys.right then
-                -- Right
-                if nPos < #line then
-                    nPos = nPos + 1
-                    redraw()
-                end
-
-            elseif param == keys.up or param == keys.down then
-                -- Up or down
-                if history then
-                    if param == keys.up then
-                        -- Up
-                        if nHistoryPos == nil then
-                            if #history > 0 then
-                                nHistoryPos = #history
-                            end
-                        elseif nHistoryPos > 1 then
-                            nHistoryPos = nHistoryPos - 1
-                        end
-                    else
-                        -- Down
-                        if nHistoryPos == #history then
-                            nHistoryPos = nil
-                        elseif nHistoryPos ~= nil then
-                            nHistoryPos = nHistoryPos + 1
-                        end
-                    end
-
-                    if nHistoryPos then
-                        line = history[nHistoryPos]
-                        nPos = #line
-                    else
-                        line = ""
-                        nPos = 0
-                    end
-                    redraw()
-                end
-            elseif param == keys.backspace then
-                -- Backspace
-                if nPos > 0 then
-                    line = line:sub(1, nPos - 1) .. line:sub(nPos + 1)
-                    nPos = nPos - 1
-                    redraw()
-                end
-            elseif param == keys.home then
-                -- Home
-                nPos = 0
-                redraw()
-            elseif param == keys.delete then
-                if nPos < #line then
-                    line = line:sub(1, nPos) .. line:sub(nPos + 2)
-                    redraw()
-                end
-            elseif param == keys["end"] then
-                -- End
-                nPos = #line
-                redraw()
-            elseif param == keys.tab then
-                --tab autocomplete.
-                if #line > 0 then
-                    local startsWithCurrentInput, results = false, {}
-                    for _, v in pairs(sortedHelpKeys) do
-                        if v ~= "blockpatterns" then
-                            local lineLen = #line
-                            if lineLen < #v and not line:find(" ", nil, true) and line == v:sub(1, #line) then
-                                startsWithCurrentInput = true
-                                results[#results + 1] = v
-                            elseif v > line then
-                                break
-                            end
-                        end
-                    end
-                    if #results == 1 then
-                        line = results[1]
-                        nPos = #line
-                        redraw()
-                    elseif #results > 1 then
-                        print ""
-                        print(unpack(results))
-                        io.write "> "
-                        line = ""
-                        nPos = 0
-                        sy = sy + 2
-                    end
-                end
-            end
-        end
-    end
-
-    term.setCursorBlink(false)
-    term.setCursorPos(w + 1, sy)
-    io.write "\n> "
-    return line
-end
-
---End of lsh
-
-
-local function getConsoleInput()
-    --- Gets commands from typing on the computer itself.
-    while true do
-        local str = customRead(runHistory)
-        local username = getPlayerName()
-        os.queueEvent("chatFromConsole", username, str) --As long as the event starts with "chat", it works!
-    end
-end
-
-local function getRednetInput()
-    --- Gets commands from rednet messages sent by trusted IDs.
-    peripheral.find("modem", rednet.open) --Open all rednet modems
-    local event = { os.pullEvent "rednet_message" } --Listen for the initial message
-    while true do
-        if event[4]:sub(1, 8) == "WE_Input" then
-            --Listen for the protocol
-            if tablex.find(trustedIDs, event[2]) == nil then
-                --If the ID is not trusted
-                WE.sendChat(("Computer with ID %s is trying to connect for remote input. Allow? (Y/N)"):format(event[2])) --Prompt the user to trust it
-                username, message = getCommand() --Get the user's response
-                if message:lower() == "t" or message:lower() == "true" or message:lower() == "y" or message:lower() == "yes" then
-                    table.insert(trustedIDs, event[2]) --Trust the IDs
-                    writeIDs() --Update the IDs file
-                    WE.sendChat(("Allowing pocket computer with ID %s to control this computer remotely."):format(event[2]))
-                else
-                    WE.sendChat(("Not allowing computer with ID %s."):format(event[2]))
-                end
-            end
-        end
-        if tablex.find(trustedIDs, event[2]) ~= nil then
-            --If it's already trusted, run the command.
-            os.queueEvent("chatFromRednet", event[4]:sub(9), event[3])
-        end
-        event = { os.pullEvent "rednet_message" } --Listen for the next message.
     end
 end
 
@@ -1275,46 +1071,33 @@ local function parseCmdArgs()
         return
     end
     local cmd = "_ " --We only have access to the stuff after the command, so "_" is put in as a dummy command.
-    for i = 1, #args do
-        cmd = cmd .. args[i] .. " " --Generate the original command from the command line arguments
+    cmd = cmd .. table.concat(args, " ") --Generate the original command from the command line arguments
+
+    --Parse the args like a normal command
+    local _, normalArgs, namedArgs, shortSwitches, longSwitches = parseCommandArgs(cmd, true, false)
+
+    debug = shortSwitches.d or shortSwitches.debug
+    local cfgfolder = namedArgs.cf or namedArgs.cfgfolder
+    local cfgapipath = namedArgs.cap or namedArgs.cfgapipath
+    local cfgpath = shortSwitches.cp or shortSwitches.cfgpath
+    if cfgfolder then
+        --Change the folder in which the config is stored.
+        WE.ConfigFolder = cfgfolder
     end
-    cmd = cmd:sub(1, -1)
-    local cmdArgs = { parseCommandArgs(cmd, true, false) } --Parse the args like a normal command
-    WE.normalArgs, WE.namedArgs, WE.shortSwitches, WE.longSwitches = cmdArgs[2], cmdArgs[3], cmdArgs[4], cmdArgs[5]
-    debug = WE.shortSwitches.d or WE.shortSwitches.debug
-    for k, v in pairs(WE.namedArgs) do
-        if k == "cf" or k == "cfgfolder" then
-            --Change the folder in which the config is stored.
-            if #v > 0 then
-                WE.ConfigFolder = v
-            else
-                WE.sendChat(("Commandline argument: \"%s\" has no value."):format(k))
-            end
-        elseif k == "cap" or k == "cfgapipath" then
-            --Change the path to ConfigAPI
-            if #v > 0 then
-                ConfigAPIPath = v
-            else
-                WE.sendChat(("Commandline argument: \"%s\" has no value."):format(k))
-            end
-        end
+    if cfgapipath then
+        --Change the path to ConfigAPI
+        ConfigAPIPath = cfgapipath
     end
-    for k, v in pairs(WE.shortSwitches) do
-        if k == "cp" or k == "cfgpath" then
-            --Change the name of the config
-            if #v > 0 then
-                ConfigPath = v
-            else
-                WE.sendChat(("Commandline argument: \"%s\" has no value."):format(k))
-            end
-        end
+    if cfgpath then
+        --Change the name of the config
+        ConfigPath = cfgpath
     end
-    return WE.normalArgs, WE.namedArgs, WE.shortSwitches, WE.longSwitches
+    return normalArgs, namedArgs, shortSwitches, longSwitches
 end
 
 local function parseConfig()
     WE.ConfigFolder = type(WE.ConfigFolder) == "string" and WE.ConfigFolder or "WE/"
-    ConfigPath = ConfigPath or WE.ConfigFolder .. "Config"
+    ConfigPath = ConfigPath or WE.ConfigFolder .. "Config.ini"
     ConfigAPIPath = ConfigAPIPath or "NewConfigAPI"
     fs.makeDir(WE.ConfigFolder)
     WE.cfg = loadPlugin(WE.ConfigFolder .. ConfigAPIPath)
@@ -1328,6 +1111,8 @@ ClipboardPath=Clipboard
 SelectionPath=Selection
 ; Where in the WorldEdit folder the trusted rednet IDs will be stored.
 IDPath=trustedIDs
+; Where in the WorldEdit folder tasks will be stored.
+TaskPath=Tasks
 [SillyOptions]
 ; Whether the blocks should be set in order, or randomly.
 RandomSetOrder=false
@@ -1352,6 +1137,11 @@ RandomSetOrder=false
         WE.cfg.add("FileLocations", "IDPath", "trustedIDs")
         WE.cfg.addComment("FileLocations", "IDPath", "Where in the WorldEdit folder the trusted rednet IDs will be stored.")
     end
+    if not WE.cfg.hasValue("FileLocations", "TaskPath") then
+        WE.sendChat "TaskPath does not exist! Generating config option..."
+        WE.cfg.add("FileLocations", "TaskPath", "Tasks")
+        WE.cfg.addComment("FileLocations", "TaskPath", "Where in the WorldEdit folder Tasks will be stored.")
+    end
     if not WE.cfg.hasValue("SillyOptions", "RandomSetOrder") then
         WE.sendChat "RandomSetOrder does not exist! Generating config option..."
         WE.cfg.add("SillyOptions", "RandomSetOrder", false)
@@ -1363,6 +1153,7 @@ RandomSetOrder=false
     PluginPath = WE.cfg.get("FileLocations", "PluginPath")
     SelectionPath = WE.cfg.get("FileLocations", "SelectionPath")
     IDPath = WE.cfg.get("FileLocations", "IDPath")
+    TaskPath = WE.cfg.get("FileLocations", "TaskPath")
     WE.RandomSetOrder = WE.cfg.get("SillyOptions", "RandomSetOrder")
     fs.makeDir(WE.ConfigFolder .. PluginPath)
 end
@@ -1372,359 +1163,21 @@ local function init()
     endProgram = false
     p = peripheral.find "adventure map interface" --Wrap the adventure map interface if it exists.
     w = p and p.getWorld(p.getPeripheralWorldID()) --Set up the adventure map interface
-    --Names of the blocks, and conversion to and from ID and MC name
-    BlockNames = {
-        { "stone", "rock" }, { "grass" }, { "dirt" }, { "cobblestone", "cobble" }, { "wood", "woodplank", "plank", "woodplanks", "planks" }, { "sapling", "seedling" }, { "adminium", "bedrock" }, { "water_(stationary)", "water", "waterstationary", "stationarywater", "stillwater" }, { "watermoving", "movingwater", "flowingwater", "waterflowing" }, { "lavamoving", "movinglava", "flowinglava", "lavaflowing" }, { "lava_(stationary)", "lava", "lavastationary", "stationarylava", "stilllava" }, { "sand", "redsand", "red_sand" }, { "gravel" }, { "gold_ore", "goldore" }, { "iron_ore", "ironore" }, { "coal_ore", "coalore" }, { "log", "tree", "pine", "oak", "birch", "jungle" }, { "leaves", "leaf" }, { "sponge" }, { "glass" }, { "lapis_lazuli_ore", "lapislazuliore", "blueore", "lapisore" }, { "lapis_lazuli", "lapislazuli", "lapislazuliblock", "bluerock", "lapisblock" }, { "dispenser" }, { "sandstone" }, { "note_block", "musicblock", "noteblock", "note", "music", "instrument" }, { "bed" }, { "poweredrail", "boosterrail", "poweredtrack", "boostertrack", "booster" }, { "detector_rail", "detectorrail", "detector" }, { "sticky_piston", "stickypiston" }, { "web", "spiderweb" }, { "tall_grass", "long_grass", "longgrass", "tallgrass" }, { "deadbush", "shrub", "deadshrub", "tumbleweed" }, { "piston" }, { "piston_extension", "pistonextendsion", "pistonhead" }, { "cloth", "wool" }, { "piston_moving_piece", "movingpiston" }, { "yellow_flower", "yellowflower", "flower" }, { "red_rose", "redflower", "redrose", "rose" }, { "brown_mushroom", "brownmushroom", "mushroom" }, { "red_mushroom", "redmushroom" }, { "gold_block", "gold", "goldblock" }, { "iron_block", "iron", "ironblock" }, { "double_step", "doubleslab", "doublestoneslab", "doublestep" }, { "slab", "stoneslab", "step", "halfstep" }, { "brick", "brickblock" }, { "tnt", "c4", "explosive" }, { "bookshelf", "bookshelves", "bookcase", "bookcases" }, { "cobblestone_(mossy)", "mossycobblestone", "mossstone" }, { "obsidian" }, { "torch", "light", "candle" }, { "fire", "flame", "flames" }, { "mob_spawner", "mobspawner", "spawner" }, { "wooden_stairs", "woodstair", "woodstairs", "woodenstair", "woodenstairs" }, { "chest", "storage", "storagechest" }, { "redstone_wire", "redstone", "redstoneblock" }, { "diamond_ore", "diamondore" }, { "diamond_block", "diamond", "diamondblock" }, { "workbench", "table", "craftingtable", "crafting" }, { "crops", "crop", "plant", "plants" }, { "soil", "farmland" }, { "furnace" }, { "furnace_(burning)", "burningfurnace", "litfurnace" }, { "sign_post", "sign", "signpost" }, { "wooden_door", "wooddoor", "woodendoor", "door" }, { "ladder" }, { "minecart_tracks", "track", "tracks", "minecrattrack", "minecarttracks", "rails", "rail" }, { "cobblestone_stairs", "cobblestonestair", "cobblestonestairs", "cobblestair", "cobblestairs" },
-        { "wall_sign", "wallsign" }, { "lever", "switch", "stonelever", "stoneswitch" }, { "stone_pressure_plate", "stonepressureplate", "stoneplate" }, { "iron_door", "irondoor" }, { "wooden_pressure_plate", "woodpressureplate", "woodplate", "woodenpressureplate", "woodenplate", "plate", "pressureplate" }, { "redstone_ore", "redstoneore" }, { "glowing_redstone_ore", "glowingredstoneore" }, { "redstone_torch_(off)", "redstonetorchoff", "rstorchoff" }, { "redstone_torch_(on)", "redstonetorch", "redstonetorchon", "rstorchon", "redtorch" }, { "stone_button", "stonebutton", "button" }, { "snow", "snow_layer" }, { "ice" }, { "snow_block", "snowblock" }, { "cactus", "cacti" }, { "clay" }, { "reed", "cane", "sugarcane", "sugarcanes" }, { "jukebox", "stereo", "recordplayer" }, { "fence", "fence" }, { "pumpkin" }, { "redmossycobblestone", "redcobblestone", "redmosstone", "redcobble", "netherstone", "netherrack", "nether", "hellstone" }, { "soul_sand", "slowmud", "mud", "soulsand", "hellmud" }, { "glowstone", "brittlegold", "lightstone", "brimstone", "australium" }, { "portal", "portal" }, { "pumpkin_(on)", "pumpkinlighted", "pumpkinon", "litpumpkin", "jackolantern" }, { "cake", "cakeblock" }, { "redstone_repeater_(off)", "diodeoff", "redstonerepeater", "repeateroff", "delayeroff" }, { "redstone_repeater_(on)", "diodeon", "redstonerepeateron", "repeateron", "delayeron" }, { "stained_glass", "stainedglass" }, { "trap_door", "trapdoor", "hatch", "floordoor" }, { "silverfish_block", "silverfish", "silver" }, { "stone_brick", "stonebrick", "sbrick", "smoothstonebrick" }, { "red_mushroom_cap", "giantmushroomred", "redgiantmushroom", "redmushroomcap" }, { "brown_mushroom_cap", "giantmushroombrown", "browngiantmushoom", "brownmushroomcap" }, { "iron_bars", "ironbars", "ironfence" }, { "glass_pane", "window", "glasspane", "glasswindow" }, { "melon_(block)", "melonblock" }, { "pumpkin_stem", "pumpkinstem" }, { "melon_stem", "melonstem" }, { "vine", "vines", "creepers" }, { "fence_gate", "fencegate", "gate" }, { "brick_stairs", "brickstairs", "bricksteps" }, { "stone_brick_stairs", "stonebrickstairs", "smoothstonebrickstairs" }, { "mycelium", "fungus", "mycel" }, { "lily_pad", "lilypad", "waterlily" }, { "nether_brick", "netherbrick" }, { "nether_brick_fence", "netherbrickfence", "netherfence" }, { "nether_brick_stairs", "netherbrickstairs", "netherbricksteps", "netherstairs", "nethersteps" }, { "nether_wart", "netherwart", "netherstalk" }, { "enchantment_table", "enchantmenttable", "enchanttable" }, { "brewing_stand", "brewingstand" }, { "cauldron" }, { "end_portal", "endportal", "blackstuff", "airportal", "weirdblackstuff" }, { "end_portal_frame", "endportalframe", "airportalframe", "crystalblock" }, { "end_stone", "endstone", "enderstone", "endersand" }, { "dragon_egg", "dragonegg", "dragons" },
-        { "redstone_lamp_(off)", "redstonelamp", "redstonelampoff", "rslamp", "rslampoff", "rsglow", "rsglowoff" }, { "redstone_lamp_(on)", "redstonelampon", "rslampon", "rsglowon" }, { "double_wood_step", "doublewoodslab", "doublewoodstep" }, { "wood_step", "woodenslab", "woodslab", "woodstep", "woodhalfstep" }, { "cocoa_plant", "cocoplant", "cocoaplant" }, { "sandstone_stairs", "sandstairs", "sandstonestairs" }, { "emerald_ore", "emeraldore" }, { "ender_chest", "enderchest" }, { "tripwire_hook", "tripwirehook" }, { "tripwire", "string" }, { "emerald_block", "emeraldblock", "emerald" }, { "spruce_wood_stairs", "sprucestairs", "sprucewoodstairs" }, { "birch_wood_stairs", "birchstairs", "birchwoodstairs" }, { "jungle_wood_stairs", "junglestairs", "junglewoodstairs" }, { "command_block", "commandblock", "cmdblock", "command", "cmd" }, { "beacon", "beaconblock" }, { "cobblestone_wall", "cobblestonewall", "cobblewall" }, { "flower_pot", "flowerpot", "plantpot", "pot" }, { "carrots", "carrotsplant", "carrotsblock" }, { "potatoes", "potatoesblock" }, { "wooden_button", "woodbutton", "woodenbutton" }, { "head", "skull" }, { "anvil", "blacksmith" }, { "trapped_chest", "trappedchest", "redstonechest" }, { "weighted_pressure_plate_(light)", "lightpressureplate" }, { "weighted_pressure_plate_(heavy)", "heavypressureplate" }, { "redstone_comparator_(inactive)", "redstonecomparator", "comparator" }, { "redstone_comparator_(active)", "redstonecomparatoron", "comparatoron" }, { "daylight_sensor", "daylightsensor", "lightsensor", "daylightdetector" }, { "block_of_redstone", "redstoneblock", "blockofredstone" }, { "nether_quartz_ore", "quartzore", "netherquartzore" }, { "hopper" }, { "block_of_quartz", "quartzblock", "quartz" }, { "quartz_stairs", "quartzstairs" }, { "activator_rail", "activatorrail", "tntrail", "activatortrack" }, { "dropper" }, { "stained_clay", "stainedclay", "stainedhardenedclay" }, { "stained_glass_pane", "stainedglasspane" }, { "leaves2", "acacialeaves", "darkoakleaves" }, { "log2", "acacia", "darkoak" }, { "acacia_wood_stairs", "acaciawoodstairs", "acaciastairs" }, { "dark_oak_wood_stairs", "darkoakwoodstairs", "darkoakstairs" },
-        [165] = { "slimeblock", "slime_block" },
-        [170] = { "hay_block", "hayblock", "haybale", "wheatbale" },
-        [171] = { "carpet", "carpet" },
-        [172] = { "hardened_clay", "hardenedclay", "hardclay" },
-        [173] = { "block_of_coal", "coalblock", "blockofcoal" },
-        [174] = { "packed_ice", "packedice", "hardice" },
-        [175] = { "large_flowers", "largeflowers", "doubleflowers" },
-        [176] = { "large_flowers", "largeflowers", "doubleflowers" },
-        [0] = { "air" }
-    }
-    MCNames = {
-        [0] = "minecraft:air", "minecraft:stone", "minecraft:grass", "minecraft:dirt", "minecraft:cobblestone", "minecraft:planks", "minecraft:sapling", "minecraft:bedrock", "minecraft:flowing_water", "minecraft:water", "minecraft:flowing_lava", "minecraft:lava", "minecraft:sand", "minecraft:gravel", "minecraft:gold_ore", "minecraft:iron_ore", "minecraft:coal_ore", "minecraft:log", "minecraft:leaves", "minecraft:sponge", "minecraft:glass", "minecraft:lapis_ore", "minecraft:lapis_block", "minecraft:dispenser", "minecraft:sandstone", "minecraft:noteblock", "minecraft:bed", "minecraft:golden_rail", "minecraft:detector_rail", "minecraft:sticky_piston", "minecraft:web", "minecraft:tallgrass", "minecraft:deadbush", "minecraft:piston", "minecraft:piston_head", "minecraft:wool",
-        [37] = "minecraft:yellow_flower",
-        [38] = "minecraft:red_flower",
-        [39] = "minecraft:brown_mushroom",
-        [40] = "minecraft:red_mushroom",
-        [41] = "minecraft:gold_block",
-        [42] = "minecraft:iron_block",
-        [43] = "minecraft:double_stone_slab",
-        [44] = "minecraft:stone_slab",
-        [45] = "minecraft:brick_block",
-        [46] = "minecraft:tnt",
-        [47] = "minecraft:bookshelf",
-        [48] = "minecraft:mossy_cobblestone",
-        [49] = "minecraft:obsidian",
-        [50] = "minecraft:torch",
-        [51] = "minecraft:fire",
-        [52] = "minecraft:mob_spawner",
-        [53] = "minecraft:oak_stairs",
-        [54] = "minecraft:chest",
-        [55] = "minecraft:redstone_wire",
-        [56] = "minecraft:diamond_ore",
-        [57] = "minecraft:diamond_block",
-        [58] = "minecraft:crafting_table",
-        [59] = "minecraft:wheat",
-        [60] = "minecraft:farmland",
-        [61] = "minecraft:furnace",
-        [62] = "minecraft:lit_furnace",
-        [63] = "minecraft:standing_sign",
-        [64] = "minecraft:wooden_door",
-        [65] = "minecraft:ladder",
-        [66] = "minecraft:rail",
-        [67] = "minecraft:stone_stairs",
-        [68] = "minecraft:wall_sign",
-        [69] = "minecraft:lever",
-        [70] = "minecraft:stone_pressure_plate",
-        [71] = "minecraft:iron_door",
-        [72] = "minecraft:wooden_pressure_plate",
-        [73] = "minecraft:redstone_ore",
-        [74] = "minecraft:lit_redstone_ore",
-        [75] = "minecraft:unlit_redstone_torch",
-        [76] = "minecraft:redstone_torch",
-        [77] = "minecraft:stone_button",
-        [78] = "minecraft:snow_layer",
-        [79] = "minecraft:ice",
-        [80] = "minecraft:snow",
-        [81] = "minecraft:cactus",
-        [82] = "minecraft:clay",
-        [83] = "minecraft:reeds",
-        [84] = "minecraft:jukebox",
-        [85] = "minecraft:fence",
-        [86] = "minecraft:pumpkin",
-        [87] = "minecraft:netherrack",
-        [88] = "minecraft:soul_sand",
-        [89] = "minecraft:glowstone",
-        [90] = "minecraft:portal",
-        [91] = "minecraft:lit_pumpkin",
-        [92] = "minecraft:cake",
-        [93] = "minecraft:unpowered_repeater",
-        [94] = "minecraft:powered_repeater",
-        [95] = "minecraft:stained_glass",
-        [96] = "minecraft:trapdoor",
-        [97] = "minecraft:monster_egg",
-        [98] = "minecraft:stonebrick",
-        [99] = "minecraft:stonebrick",
-        [100] = "minecraft:stonebrick",
-        [101] = "minecraft:iron_bars",
-        [102] = "minecraft:glass_pane",
-        [103] = "minecraft:melon_block",
-        [104] = "minecraft:pumpkin_stem",
-        [105] = "minecraft:melon_stem",
-        [106] = "minecraft:vine",
-        [107] = "minecraft:fence_gate",
-        [108] = "minecraft:brick_stairs",
-        [109] = "minecraft:stone_brick_stairs",
-        [110] = "minecraft:mycelium",
-        [111] = "minecraft:waterlily",
-        [112] = "minecraft:nether_brick",
-        [113] = "minecraft:nether_brick_fence",
-        [114] = "minecraft:nether_brick_stairs",
-        [115] = "minecraft:nether_wart",
-        [116] = "minecraft:enchanting_table",
-        [117] = "minecraft:brewing_stand",
-        [118] = "minecraft:cauldron",
-        [119] = "minecraft:end_portal",
-        [120] = "minecraft:end_portal_frame",
-        [121] = "minecraft:end_stone",
-        [122] = "minecraft:dragon_egg",
-        [123] = "minecraft:redstone_lamp",
-        [124] = "minecraft:lit_redstone_lamp",
-        [125] = "minecraft:double_wooden_slab",
-        [126] = "minecraft:wooden_slab",
-        [127] = "minecraft:cocoa",
-        [128] = "minecraft:sandstone_stairs",
-        [129] = "minecraft:emerald_ore",
-        [130] = "minecraft:ender_chest",
-        [131] = "minecraft:tripwire_hook",
-        [132] = "minecraft:tripwire_hook",
-        [133] = "minecraft:emerald_block",
-        [134] = "minecraft:spruce_stairs",
-        [135] = "minecraft:birch_stairs",
-        [136] = "minecraft:jungle_stairs",
-        [137] = "minecraft:command_block",
-        [138] = "minecraft:beacon",
-        [139] = "minecraft:cobblestone_wall",
-        [140] = "minecraft:flower_pot",
-        [141] = "minecraft:carrots",
-        [142] = "minecraft:potatoes",
-        [143] = "minecraft:wooden_button",
-        [144] = "minecraft:skull",
-        [145] = "minecraft:anvil",
-        [146] = "minecraft:trapped_chest",
-        [147] = "minecraft:light_weighted_pressure_plate",
-        [148] = "minecraft:heavy_weighted_pressure_plate",
-        [149] = "minecraft:unpowered_comparator",
-        [150] = "minecraft:powered_comparator",
-        [151] = "minecraft:daylight_detector",
-        [152] = "minecraft:redstone_block",
-        [153] = "minecraft:quartz_ore",
-        [154] = "minecraft:hopper",
-        [155] = "minecraft:quartz_block",
-        [156] = "minecraft:quartz_stairs",
-        [157] = "minecraft:activator_rail",
-        [158] = "minecraft:dropper",
-        [159] = "minecraft:stained_hardened_clay",
-        [160] = "minecraft:stained_glass_pane",
-        [161] = "minecraft:leaves2",
-        [162] = "minecraft:logs2",
-        [163] = "minecraft:acacia_stairs",
-        [164] = "minecraft:dark_oak_stairs",
-        [170] = "minecraft:hay_block",
-        [171] = "minecraft:carpet",
-        [172] = "minecraft:hardened_clay",
-        [173] = "minecraft:coal_block",
-        [174] = "minecraft:packed_ice",
-        [175] = "minecraft:double_plant"
-    }
-    IDs = {
-        ["minecraft:bed"] = 26,
-        ["minecraft:unlit_redstone_torch"] = 75,
-        ["minecraft:mob_spawner"] = 52,
-        ["minecraft:stone_brick_stairs"] = 109,
-        ["minecraft:end_portal"] = 119,
-        ["minecraft:web"] = 30,
-        ["minecraft:oak_stairs"] = 53,
-        ["minecraft:nether_brick"] = 112,
-        ["minecraft:noteblock"] = 25,
-        ["minecraft:dropper"] = 158,
-        ["minecraft:ladder"] = 65,
-        ["minecraft:detector_rail"] = 28,
-        ["minecraft:lapis_block"] = 22,
-        ["minecraft:emerald_ore"] = 129,
-        ["minecraft:water"] = 9,
-        ["minecraft:stained_hardened_clay"] = 159,
-        ["minecraft:beacon"] = 138,
-        ["minecraft:soul_sand"] = 88,
-        ["minecraft:wooden_door"] = 64,
-        ["minecraft:pumpkin"] = 86,
-        ["minecraft:wheat"] = 59,
-        ["minecraft:iron_bars"] = 101,
-        ["minecraft:redstone_ore"] = 73,
-        ["minecraft:jukebox"] = 84,
-        ["minecraft:dragon_egg"] = 122,
-        ["minecraft:spruce_stairs"] = 134,
-        ["minecraft:hopper"] = 154,
-        ["minecraft:stone_slab"] = 44,
-        ["minecraft:skull"] = 144,
-        ["minecraft:carpet"] = 171,
-        ["minecraft:mycelium"] = 110,
-        ["minecraft:sand"] = 12,
-        ["minecraft:coal_ore"] = 16,
-        ["minecraft:stained_glass"] = 95,
-        ["minecraft:snow"] = 80,
-        ["minecraft:fire"] = 51,
-        ["minecraft:enchanting_table"] = 116,
-        ["minecraft:lava"] = 11,
-        ["minecraft:potatoes"] = 142,
-        ["minecraft:unpowered_repeater"] = 93,
-        ["minecraft:stone_stairs"] = 67,
-        ["minecraft:cauldron"] = 118,
-        ["minecraft:stone_pressure_plate"] = 70,
-        ["minecraft:deadbush"] = 32,
-        ["minecraft:torch"] = 50,
-        ["minecraft:hay_block"] = 170,
-        ["minecraft:sandstone_stairs"] = 128,
-        ["minecraft:netherrack"] = 87,
-        ["minecraft:sandstone"] = 24,
-        ["minecraft:gold_ore"] = 14,
-        ["minecraft:bookshelf"] = 47,
-        ["minecraft:cake"] = 92,
-        ["minecraft:logs2"] = 162,
-        ["minecraft:melon_stem"] = 105,
-        ["minecraft:piston_head"] = 34,
-        ["minecraft:brick_block"] = 45,
-        ["minecraft:acacia_stairs"] = 163,
-        ["minecraft:brown_mushroom"] = 39,
-        ["minecraft:lit_furnace"] = 62,
-        ["minecraft:glass"] = 20,
-        ["minecraft:stone_button"] = 77,
-        ["minecraft:air"] = 0,
-        ["minecraft:packed_ice"] = 174,
-        ["minecraft:sapling"] = 6,
-        ["minecraft:pumpkin_stem"] = 104,
-        ["minecraft:leaves"] = 18,
-        ["minecraft:fence"] = 85,
-        ["minecraft:obsidian"] = 49,
-        ["minecraft:snow_layer"] = 78,
-        ["minecraft:wool"] = 35,
-        ["minecraft:powered_comparator"] = 150,
-        ["minecraft:jungle_stairs"] = 136,
-        ["minecraft:iron_block"] = 42,
-        ["minecraft:chest"] = 54,
-        ["minecraft:diamond_ore"] = 56,
-        ["minecraft:glowstone"] = 89,
-        ["minecraft:dispenser"] = 23,
-        ["minecraft:nether_brick_fence"] = 113,
-        ["minecraft:sticky_piston"] = 29,
-        ["minecraft:end_portal_frame"] = 120,
-        ["minecraft:nether_brick_stairs"] = 114,
-        ["minecraft:tnt"] = 46,
-        ["minecraft:redstone_wire"] = 55,
-        ["minecraft:command_block"] = 137,
-        ["minecraft:golden_rail"] = 27,
-        ["minecraft:flowing_water"] = 8,
-        ["minecraft:coal_block"] = 173,
-        ["minecraft:double_wooden_slab"] = 125,
-        ["minecraft:dark_oak_stairs"] = 164,
-        ["minecraft:double_plant"] = 175,
-        ["minecraft:mossy_cobblestone"] = 48,
-        ["minecraft:gravel"] = 13,
-        ["minecraft:reeds"] = 83,
-        ["minecraft:trapdoor"] = 96,
-        ["minecraft:planks"] = 5,
-        ["minecraft:stained_glass_pane"] = 160,
-        ["minecraft:activator_rail"] = 157,
-        ["minecraft:quartz_stairs"] = 156,
-        ["minecraft:nether_wart"] = 115,
-        ["minecraft:flowing_lava"] = 10,
-        ["minecraft:waterlily"] = 111,
-        ["minecraft:quartz_block"] = 155,
-        ["minecraft:light_weighted_pressure_plate"] = 147,
-        ["minecraft:brick_stairs"] = 108,
-        ["minecraft:wooden_button"] = 143,
-        ["minecraft:quartz_ore"] = 153,
-        ["minecraft:standing_sign"] = 63,
-        ["minecraft:unpowered_comparator"] = 149,
-        ["minecraft:daylight_detector"] = 151,
-        ["minecraft:redstone_block"] = 152,
-        ["minecraft:heavy_weighted_pressure_plate"] = 148,
-        ["minecraft:vine"] = 106,
-        ["minecraft:lit_redstone_lamp"] = 124,
-        ["minecraft:anvil"] = 145,
-        ["minecraft:carrots"] = 141,
-        ["minecraft:flower_pot"] = 140,
-        ["minecraft:cobblestone_wall"] = 139,
-        ["minecraft:birch_stairs"] = 135,
-        ["minecraft:emerald_block"] = 133,
-        ["minecraft:tripwire_hook"] = 132,
-        ["minecraft:farmland"] = 60,
-        ["minecraft:furnace"] = 61,
-        ["minecraft:cocoa"] = 127,
-        ["minecraft:stone"] = 1,
-        ["minecraft:wooden_slab"] = 126,
-        ["minecraft:trapped_chest"] = 146,
-        ["minecraft:redstone_lamp"] = 123,
-        ["minecraft:double_stone_slab"] = 43,
-        ["minecraft:tallgrass"] = 31,
-        ["minecraft:monster_egg"] = 97,
-        ["minecraft:sponge"] = 19,
-        ["minecraft:end_stone"] = 121,
-        ["minecraft:iron_ore"] = 15,
-        ["minecraft:gold_block"] = 41,
-        ["minecraft:red_flower"] = 38,
-        ["minecraft:piston"] = 33,
-        ["minecraft:powered_repeater"] = 94,
-        ["minecraft:brewing_stand"] = 117,
-        ["minecraft:wall_sign"] = 68,
-        ["minecraft:clay"] = 82,
-        ["minecraft:wooden_pressure_plate"] = 72,
-        ["minecraft:lapis_ore"] = 21,
-        ["minecraft:ender_chest"] = 130,
-        ["minecraft:crafting_table"] = 58,
-        ["minecraft:lever"] = 69,
-        ["minecraft:grass"] = 2,
-        ["minecraft:cactus"] = 81,
-        ["minecraft:dirt"] = 3,
-        ["minecraft:ice"] = 79,
-        ["minecraft:bedrock"] = 7,
-        ["minecraft:hardened_clay"] = 172,
-        ["minecraft:stonebrick"] = 100,
-        ["minecraft:yellow_flower"] = 37,
-        ["minecraft:fence_gate"] = 107,
-        ["minecraft:melon_block"] = 103,
-        ["minecraft:red_mushroom"] = 40,
-        ["minecraft:lit_redstone_ore"] = 74,
-        ["minecraft:redstone_torch"] = 76,
-        ["minecraft:iron_door"] = 71,
-        ["minecraft:leaves2"] = 161,
-        ["minecraft:diamond_block"] = 57,
-        ["minecraft:lit_pumpkin"] = 91,
-        ["minecraft:cobblestone"] = 4,
-        ["minecraft:portal"] = 90,
-        ["minecraft:rail"] = 66,
-        ["minecraft:glass_pane"] = 102,
-        ["minecraft:log"] = 17
-    }
-    WE.pipeBlocks = {
-        ["minecraft:standing_sign"] = function(pipeTbl)
-            return { Text1 = pipeTbl[1], Text2 = pipeTbl[2], Text3 = pipeTbl[3], Text4 = pipeTbl[4] }
-        end,
-        ["minecraft:wall_sign"] = function(pipeTbl)
-            return WE.pipeBlocks["minecraft:standing_sign"](pipeTbl)
-        end,
-        ["minecraft:mob_spawner"] = function(pipeTbl)
-            return {
-                EntityId = pipeTbl[1],
-                MaxNearbyEntities = 6,
-                RequiredPlayerRange = 16,
-                SpawnCount = 4,
-                id = "MobSpawner",
-                MaxSpawnDelay = 800,
-                SpawnRange = 4,
-                Delay = 0,
-                MinSpawnDelay = 200
-            }
-        end
-    }
     parseCmdArgs() --Check any arguments passed through the command line
     parseConfig() --Read the config file and get the values from it
     WE.blockBlacklist = { 0, "minecraft:air" } --Blocks that should be ignored in hpos.
     WE.Direction = "" --The direction the player is looking in.
     WE.Selection = { type = "cuboid" } --Default selection type
-    WE.pos = {}
     loadPlugins()
     resetPos() --Set up the pos table (using a metatable so it can store the positions and be called as a function!)
     readSelection() --Read the previous selection from file, if it doesn't exist.
-    trustedIDs = readIDs() --Check which IDs are trusted for rednet input from file
+    WE.trustedIDs = WE.readIDs() --Check which WE.IDs are trusted for rednet input from file
     registerCommands() --Register all of the commands that are allowed to run.
+    loadPlugins(WE.ConfigFolder .. TaskPath, WE.tasks)
+    WE.taskFcts = {}
+    for _, v in pairs(WE.tasks) do
+        WE.taskFcts[#WE.taskFcts+1] = v[1]
+    end
     WE.sendChat "WorldEdit started."
     print "WorldEdit started."
     WE.sendChat "Just say your command (if you have a chat box), or type your desired command at the computer, or send it over rednet.\nRun help if you want a list of commands or information about a specific command."
@@ -1738,25 +1191,23 @@ local function main()
         return
     end
     while true do
-        WE.isCommandComputer = type(commands) == "table"
         if endProgram then
             --Only used in exit/terminate.
             term.clear()
             term.setCursorPos(1, 1)
             return
         end
-        username, message = getCommand() --Get the command from "chat"
-        username = username or getPlayerName() --If the username is nil, get the closest player
-        pl = p and p.getPlayerByName(username) --Get the player object if using the Adventure Map Interface
+        WE.username, WE.OriginalMessage = WE.getCommand() --Get the command from "chat"
+        WE.username = WE.username or WE.getPlayerName() --If the username is nil, get the closest player
+        pl = p and p.getPlayerByName(WE.username) --Get the player object if using the Adventure Map Interface
         ent = pl and pl.asEntity() --Get the player object as an entity if using the Adventure Map Interface
-        OriginalMessage = message
-        message = message:lower() --Make it case-insensitive, but keep the original just in case it's needed.
+        WE.message = WE.OriginalMessage:lower() --Make it case-insensitive, but keep the original just in case it's needed.
         parallel.waitForAny(main, WE.runCommands) --Run main again, so that commands can be entered while it waits for the current one to finish.
     end
 end
 
 init() --Initialize the program, setting up a few globals, reading files and configs, etc.
-parallel.waitForAny(main, getConsoleInput, getRednetInput, taskCounter, serpentProgress)
+parallel.waitForAny(main, unpack(WE.taskFcts))
 
 --- To bootstrap other programs to WE:
 --- -Remove getConsoleInput and getRednetInput from the parallel.waitForAny() call above. This will make WE not get console or rednet input.
@@ -1764,4 +1215,4 @@ parallel.waitForAny(main, getConsoleInput, getRednetInput, taskCounter, serpentP
 --- "os.queueEvent("chatFromSomeOtherProgram",username,message)"
 --- -Note: If username is nil, WE will automatically get the name of the nearest player.
 
----Program(s) made by moomoomoo3O9 and exlted, with contributions from Wergat and Lyqyd--
+--Program(s) made by moomoomoo3O9 and exlted, with contributions from Wergat and Lyqyd--

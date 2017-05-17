@@ -108,7 +108,7 @@ function WE.makeSelection.poly()
     end
 end
 
-poly = { name = "poly" }
+local poly = { name = "poly" }
 
 function poly.expand()
     WE.sendChat "Not Implemented"
