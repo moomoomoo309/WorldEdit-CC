@@ -64,6 +64,7 @@ Special thanks to exlted for rewriting half of my messy code with me and doing m
 
 
 ## Changelog
+(1.6) May 17th, 2017: Moved to a plugin-based system, migrated to GitHub. See commit history for more details.
 (1.5.1) July 24th, 2016: Sped up all scanning of blocks, added list, rotate, exportVar, deepCopy, deepCut. Changed copy/cut to not include NBT data.  
 (1.5) May 31st, 2016: Added NBT support to the command computer, implemented hpos on command computers. Sped up set and replace further.  
 (1.4.1) May 29th, 2016: Added rednet and direct command input, removing chat box requirement, sped up set  
