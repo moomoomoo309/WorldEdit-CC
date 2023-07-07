@@ -1,19 +1,19 @@
 local sel = { name = "sel" }
 
-local function getFlatSelection(Selection)
+local function getFlatSelection(selection)
     --- Iterates through a selection and converts it to 2D (adds the X,Z if they don't already exist)
-    local sel = { pos1 = Selection.pos1, pos2 = Selection.pos2, type = "flat" }
-    sel[1] = Selection[1]
-    for i = 1, #Selection do
-        for j = 1, #sel do
-            if Selection[i].x == sel[j].x and Selection[i].z == sel[j].z then
+    local flatSelection = { pos1 = selection.pos1, pos2 = selection.pos2, type = "flat" }
+    flatSelection[1] = selection[1]
+    for i = 1, #selection do
+        for j = 1, #flatSelection do
+            if selection[i].x == flatSelection[j].x and selection[i].z == flatSelection[j].z then
                 break
-            elseif j == #sel then
-                sel[#sel + 1] = { x = Selection[i].x, z = Selection[i].z }
+            elseif j == #flatSelection then
+                flatSelection[#flatSelection + 1] = { x = selection[i].x, z = selection[i].z }
             end
         end
     end
-    return sel
+    return flatSelection
 end
 
 --Returns a heightmap for the selected area.
@@ -23,15 +23,15 @@ local function heightmap()
     local blocksChecked = 0
     local timeDelay = 2.5 --Seconds before it prints out a percentage
     local x, z
-    local yMin, yMax = WE.Selection[1].y, WE.Selection[1].y
-    for i = 2, #WE.Selection do
-        yMin = math.min(yMin, WE.Selection[i].y)
-        yMax = math.max(yMax, WE.Selection[i].y)
+    local yMin, yMax = WE.selection[1].y, WE.selection[1].y
+    for i = 2, #WE.selection do
+        yMin = math.min(yMin, WE.selection[i].y)
+        yMax = math.max(yMax, WE.selection[i].y)
     end
-    local Selection = getFlatSelection(WE.Selection)
+    local Selection = getFlatSelection(WE.selection)
     local tbl
     if WE.isCommandComputer then
-        tbl = WE.selectLargeArea(WE.Selection.pos1.x, WE.Selection.pos1.y, WE.Selection.pos1.z, WE.Selection.pos2.x, WE.Selection.pos2.y, WE.Selection.pos2.z, 4096, true)
+        tbl = WE.selectLargeArea(WE.selection.pos1.x, WE.selection.pos1.y, WE.selection.pos1.z, WE.selection.pos2.x, WE.selection.pos2.y, WE.selection.pos2.z, 4096, true)
         timeDelay = tbl.size
     end
     if #Selection > 0 then
@@ -52,7 +52,7 @@ local function heightmap()
                     if blocksChecked == 1 then
                         WE.sendChat "Generating heightmap..."
                     end
-                    WE.sendChat(("%.1f%% Complete."):format(i / #WE.Selection * 100))
+                    WE.sendChat(("%.1f%% Complete."):format(i / #WE.selection * 100))
                 end
             end --Note, it WILL return nil if there isn't a highest block.
             cnt = cnt + 1
@@ -67,89 +67,89 @@ end
 ---Parses the message for set and replace
 local function parseBlockPatterns()
     local function splitTbls(text, needsPercent)
-        local BlocksTbl = {}
-        local MetaTbl = {}
-        local PercentagesTbl = {}
-        local PipeTbl = {}
+        local blocks = {}
+        local meta = {}
+        local percentages = {}
+        local pipes = {}
         local tmpBlocks = stringx.split(text, ",") --Split each block type
         for i = 1, #tmpBlocks do
             local findColon = tmpBlocks[i]:find(":", nil, true) --Check if the meta was specified
             local findPipe = tmpBlocks[i]:find("|", nil, true) --Check if NBT was specified
             if findColon then
                 --If it was, put the ID and meta in, otherwise, put the ID in and -1 for the meta.
-                table.insert(BlocksTbl, tonumber(tmpBlocks[i]:sub(1, findColon - 1)) or tmpBlocks[i]:sub(1, findColon - 1))
+                table.insert(blocks, tonumber(tmpBlocks[i]:sub(1, findColon - 1)) or tmpBlocks[i]:sub(1, findColon - 1))
                 if findPipe then
-                    table.insert(MetaTbl, tmpBlocks[i]:sub(findColon + 1, findPipe - 1))
-                    table.insert(PipeTbl, tmpBlocks[i]:sub(findPipe + 1))
+                    table.insert(meta, tmpBlocks[i]:sub(findColon + 1, findPipe - 1))
+                    table.insert(pipes, tmpBlocks[i]:sub(findPipe + 1))
                 else
-                    table.insert(MetaTbl, tmpBlocks[i]:sub(findColon + 1))
-                    table.insert(PipeTbl, false)
+                    table.insert(meta, tmpBlocks[i]:sub(findColon + 1))
+                    table.insert(pipes, false)
                 end
             else
                 if findPipe then
-                    table.insert(BlocksTbl, tonumber(tmpBlocks[i]:sub(1, findPipe - 1)) or tmpBlocks[i]:sub(1, findPipe - 1))
-                    table.insert(PipeTbl, tmpBlocks[i]:sub(findPipe + 1))
+                    table.insert(blocks, tonumber(tmpBlocks[i]:sub(1, findPipe - 1)) or tmpBlocks[i]:sub(1, findPipe - 1))
+                    table.insert(pipes, tmpBlocks[i]:sub(findPipe + 1))
                 else
-                    table.insert(BlocksTbl, tonumber(tmpBlocks[i]) or tmpBlocks[i])
-                    table.insert(PipeTbl, false)
+                    table.insert(blocks, tonumber(tmpBlocks[i]) or tmpBlocks[i])
+                    table.insert(pipes, false)
                 end
-                table.insert(MetaTbl, -1)
+                table.insert(meta, -1)
             end
         end
         if needsPercent then
-            for i = 1, #BlocksTbl do
-                local tmpBlocks2 = stringx.split(tostring(BlocksTbl[i]), "%")
+            for i = 1, #blocks do
+                local tmpBlocks2 = stringx.split(tostring(blocks[i]), "%")
                 if #tmpBlocks2 == 2 then
-                    BlocksTbl[i] = tonumber(tmpBlocks2[2]) or tmpBlocks2[2]
-                    PercentagesTbl[i] = tmpBlocks2[1]
+                    blocks[i] = tonumber(tmpBlocks2[2]) or tmpBlocks2[2]
+                    percentages[i] = tmpBlocks2[1]
                 else
-                    BlocksTbl[i] = tonumber(tmpBlocks2[1]) or tmpBlocks2[1]
-                    PercentagesTbl[i] = PercentagesTbl[i] or false --This could be any non-number.
+                    blocks[i] = tonumber(tmpBlocks2[1]) or tmpBlocks2[1]
+                    percentages[i] = percentages[i] or false --This could be any non-number.
                 end
             end
         end
         if needsPercent then
-            return BlocksTbl, MetaTbl, PercentagesTbl, PipeTbl
+            return blocks, meta, percentages, pipes
         else
-            return BlocksTbl, MetaTbl
+            return blocks, meta
         end
     end
 
-    local Blocks, Meta, Blocks2, Meta2, Percentages, Pipes
+    local blocks, meta, blocks2, meta2, percentages, pipes
     if #WE.normalArgs == 2 then
         --If two types of blocks were specified
-        Blocks, Meta = splitTbls(WE.normalArgs[1], false)
-        Blocks2, Meta2, Percentages, Pipes = splitTbls(WE.normalArgs[2], true)
+        blocks, meta = splitTbls(WE.normalArgs[1], false)
+        blocks2, meta2, percentages, pipes = splitTbls(WE.normalArgs[2], true)
     else
-        Blocks2, Meta2, Percentages, Pipes = splitTbls(WE.normalArgs[1], true)
+        blocks2, meta2, percentages, pipes = splitTbls(WE.normalArgs[1], true)
     end
 
-    local TotalPercent = 0 --Convert ones without percentages to ones WITH percentages!
-    local Spaces = 0
-    for i = 1, #Percentages do
-        if not tonumber(Percentages[i]) then
-            Spaces = Spaces + 1
+    local totalPercent = 0 --Convert ones without percentages to ones WITH percentages!
+    local spaces = 0
+    for i = 1, #percentages do
+        if not tonumber(percentages[i]) then
+            spaces = spaces + 1
         end
     end
-    if Spaces == #Percentages then
-        for i = 1, #Percentages do
-            Percentages[i] = 1
+    if spaces == #percentages then
+        for i = 1, #percentages do
+            percentages[i] = 1
         end
     end
-    for i = 1, #Percentages do
-        if tonumber(Percentages[i]) then
-            TotalPercent = TotalPercent + Percentages[i]
+    for i = 1, #percentages do
+        if tonumber(percentages[i]) then
+            totalPercent = totalPercent + percentages[i]
         end
     end
-    for i = 1, #Percentages do
-        if not tonumber(Percentages[i]) then
-            Percentages[i] = TotalPercent / (#Percentages - Spaces)
+    for i = 1, #percentages do
+        if not tonumber(percentages[i]) then
+            percentages[i] = totalPercent / (#percentages - spaces)
         end
     end
     if #WE.normalArgs == 2 then
-        return Blocks, Meta, Blocks2, Meta2, Percentages, TotalPercent, Pipes
+        return blocks, meta, blocks2, meta2, percentages, totalPercent, pipes
     else
-        return Blocks2, Meta2, Percentages, TotalPercent, Pipes
+        return blocks2, meta2, percentages, totalPercent, pipes
     end
 end
 
@@ -158,12 +158,12 @@ function sel.distr()
     --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Finding_the_block_distribution
     local blockCount = {}
     local TotalCount = 0
-    local useClipboard, useData, useAir = WE.shortSwitches.c, WE.shortSwitches.d, WE.shortSwitches.a
+    local useClipboard, useData = WE.shortSwitches.c, WE.shortSwitches.d
 
-    local tbl = (useClipboard and #WE.Clipboard > 0) and WE.Clipboard or WE.Selection
+    local tbl = (useClipboard and #WE.clipboard > 0) and WE.clipboard or WE.selection
     local blocksTbl
     if not useClipboard and WE.isCommandComputer then
-        blocksTbl = WE.selectLargeArea(WE.Selection.pos1.x, WE.Selection.pos1.y, WE.Selection.pos1.z, WE.Selection.pos2.x, WE.Selection.pos2.y, WE.Selection.pos2.z, 4096, true)
+        blocksTbl = WE.selectLargeArea(WE.selection.pos1.x, WE.selection.pos1.y, WE.selection.pos1.z, WE.selection.pos2.x, WE.selection.pos2.y, WE.selection.pos2.z, 4096, true)
     end
     if not useData then
         for i = 1, #tbl do
@@ -172,9 +172,9 @@ function sel.distr()
             local z = tbl[i].z
             local blockID
             if useClipboard then
-                blockID = WE.MCNameToID(tbl[i].ID)
+                blockID = WE.mcNameToID(tbl[i].ID)
             else
-                blockID = blocksTbl and WE.MCNameToID(blocksTbl[x][y][z].name) or WE.getBlockID(x, y, z)
+                blockID = blocksTbl and WE.mcNameToID(blocksTbl[x][y][z].name) or WE.getBlockID(x, y, z)
             end
             if blockID ~= 0 then
                 blockCount[blockID] = blockCount[blockID] and (blockCount[blockID] + 1) or 1 --Count blocks
@@ -187,10 +187,10 @@ function sel.distr()
             local z = tbl[i].z
             local blockID, meta
             if useClipboard then
-                blockID = WE.MCNameToID(tbl[i].ID)
+                blockID = WE.mcNameToID(tbl[i].ID)
                 meta = tonumber(tbl[i].meta)
             else
-                blockID = tonumber(blocksTbl and WE.MCNameToID(blocksTbl[x][y][z].name) or WE.getBlockID(x, y, z))
+                blockID = tonumber(blocksTbl and WE.mcNameToID(blocksTbl[x][y][z].name) or WE.getBlockID(x, y, z))
                 meta = blocksTbl and blocksTbl[x][y][z].metadata or WE.getMetadata(x, y, z)
             end
             if blockCount[blockID] and blockCount[blockID][meta] and blockID ~= 0 then
@@ -214,11 +214,11 @@ function sel.distr()
     end
     for k, v in pairs(blockCount) do
         if not WE.shortSwitches.d then
-            WE.sendChat(v .. ("  (%.2f%%) "):format(v / TotalCount * 100) .. (WE.BlockNames[k] and (WE.BlockNames[k][1]:sub(1, 1):upper() .. WE.BlockNames[k][1]:sub(2):gsub("_", " ")) or k) .. " #" .. k) --This takes the first entry in the WE.BlockNames table and force capitalizes the first letter.
+            WE.sendChat(v .. ("  (%.2f%%) "):format(v / TotalCount * 100) .. (WE.blockNames[k] and (WE.blockNames[k][1]:sub(1, 1):upper() .. WE.blockNames[k][1]:sub(2):gsub("_", " ")) or k) .. " #" .. k) --This takes the first entry in the WE.blockNames table and force capitalizes the first letter.
         else
             for k2, v2 in pairs(i) do
                 --Go through all meta values
-                WE.sendChat(v2 .. ("  (%.2f%%) "):format(v2 / TotalCount * 100) .. (WE.BlockNames[k] and (WE.BlockNames[k][1]:sub(1, 1):upper() .. WE.BlockNames[k][1]:sub(2):gsub("_", " ")) or k) .. " #" .. k .. ":" .. k2) --Check the comment before last! This one just has a ":[Metadata]" at the end!
+                WE.sendChat(v2 .. ("  (%.2f%%) "):format(v2 / TotalCount * 100) .. (WE.blockNames[k] and (WE.blockNames[k][1]:sub(1, 1):upper() .. WE.blockNames[k][1]:sub(2):gsub("_", " ")) or k) .. " #" .. k .. ":" .. k2) --Check the comment before last! This one just has a ":[Metadata]" at the end!
             end
         end
     end
@@ -231,51 +231,51 @@ function sel.count()
         return
     end
     local checkMeta = WE.shortSwitches.d
-    local findColon, findColonEnd = WE.message:find(":", nil, true) --Find the colon for the meta
-    local findSpace, findSpaceEnd = WE.message:find(" ", nil, true) --Find the space to get the argument
+    local findColon = WE.message:find(":", nil, true) --Find the colon for the meta
+    local findSpace = WE.message:find(" ", nil, true) --Find the space to get the argument
     if findColon and not checkMeta then
         WE.sendChat "Use the -d flag for data values!"
         return false
     end --Why yes, this IS the ConvertName() function repurposed!
-    local ID, Meta
+    local id, metadata
     if checkMeta and findColon then
-        ID = WE.message:sub(findSpace + 1, findColon - 1)
-        Meta = WE.message:sub(findColon + 1)
+        id = WE.message:sub(findSpace + 1, findColon - 1)
+        metadata = WE.message:sub(findColon + 1)
     elseif findSpace then
-        ID = WE.message:sub(findSpace + 1)
-        Meta = nil --No meta means no meta!
+        id = WE.message:sub(findSpace + 1)
+        metadata = nil --No meta means no meta!
     end
-    if not tonumber(ID) then
-        for k, v in pairs(WE.BlockNames) do
-            if tablex.indexOf(v, ID) then
+    if not tonumber(id) then
+        for k, v in pairs(WE.blockNames) do
+            if tablex.indexOf(v, id) then
                 if k == 17 then
-                    if ID == "pine" then
-                        Meta = 1
-                    elseif ID == "birch" then
-                        Meta = 2
-                    elseif ID == "jungle" then
-                        Meta = 3
+                    if id == "pine" then
+                        metadata = 1
+                    elseif id == "birch" then
+                        metadata = 2
+                    elseif id == "jungle" then
+                        metadata = 3
                     end
-                    ID = k
+                    id = k
                     break
                 elseif k == 162 then
-                    if ID == "darkoak" then
-                        Meta = 1
+                    if id == "darkoak" then
+                        metadata = 1
                     end
-                    ID = k
+                    id = k
                     break
                 elseif k == 12 then
-                    if ID == "redsand" or ID == "red_sand" then
-                        Meta = 1
+                    if id == "redsand" or id == "red_sand" then
+                        metadata = 1
                     end
-                    ID = k
+                    id = k
                     break
                 else
-                    ID = k
+                    id = k
                     break
                 end
-            elseif next(WE.BlockNames, k) == nil then
-                WE.sendChat(("Invalid Block: \"%s\". Was it a typo?"):format(ID))
+            elseif next(WE.blockNames, k) == nil then
+                WE.sendChat(("Invalid Block: \"%s\". Was it a typo?"):format(id))
                 return false
             end
         end
@@ -283,25 +283,25 @@ function sel.count()
     local Num = 0
     local tbl
     if WE.isCommandComputer then
-        tbl = WE.selectLargeArea(WE.Selection.pos1.x, WE.Selection.pos1.y, WE.Selection.pos1.z, WE.Selection.pos2.x, WE.Selection.pos2.y, WE.Selection.pos2.z, 4096, true)
+        tbl = WE.selectLargeArea(WE.selection.pos1.x, WE.selection.pos1.y, WE.selection.pos1.z, WE.selection.pos2.x, WE.selection.pos2.y, WE.selection.pos2.z, 4096, true)
     end
-    for i = 1, #WE.Selection do
+    for i = 1, #WE.selection do
         --The for loops like this just mean "Go through all of the coordinates in a rectangular area."
-        local x = WE.Selection[i].x
-        local y = WE.Selection[i].y
-        local z = WE.Selection[i].z
-        if Meta then
+        local x = WE.selection[i].x
+        local y = WE.selection[i].y
+        local z = WE.selection[i].z
+        if metadata then
             --If there's meta, check for it
-            if (tbl and WE.MCNameToID(tbl[x][y][z].name) == ID and (Meta < 0 or tbl[x][y][z].metadata == Meta)) or (WE.getBlockID(x, y, z) == ID and WE.getMetadata(x, y, z) == Meta) then
+            if (tbl and WE.mcNameToID(tbl[x][y][z].name) == id and (metadata < 0 or tbl[x][y][z].metadata == metadata)) or (WE.getBlockID(x, y, z) == id and WE.getMetadata(x, y, z) == metadata) then
                 Num = Num + 1
             end
-        elseif WE.getBlockID(x, y, z) == ID or WE.MCNameToID(tbl[x][y][z].name) == ID then
+        elseif WE.getBlockID(x, y, z) == id or WE.mcNameToID(tbl[x][y][z].name) == id then
             --If there isn't, don't.
             Num = Num + 1
         end
     end
-    if not Meta then
-        WE.sendChat(("Counted: %d %s%s"):format(Num, WE.message:sub(findSpace + 1, findSpace + 1):upper(), WE.message:sub(findSpace + 2))) --Tell how many counted and it spits back out what block the player said it was. No need to reference WE.BlockNames!
+    if not metadata then
+        WE.sendChat(("Counted: %d %s%s"):format(Num, WE.message:sub(findSpace + 1, findSpace + 1):upper(), WE.message:sub(findSpace + 2))) --Tell how many counted and it spits back out what block the player said it was. No need to reference WE.blockNames!
     else
         WE.sendChat(("Counted: %d %s%s"):format(Num, WE.message:sub(findSpace + 1, findSpace + 1):upper(), WE.message:sub(findSpace + 2, findColon - 1)))
     end
@@ -310,16 +310,16 @@ end
 function sel.size()
     --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Getting_selection_size
     if WE.shortSwitches.c then
-        WE.sendChat(("There are %d blocks in the clipboard."):format(#WE.Clipboard)) --Fortunately, it does store air blocks as well.
+        WE.sendChat(("There are %d blocks in the clipboard."):format(#WE.clipboard)) --Fortunately, it does store air blocks as well.
     else
-        WE.sendChat(("There are %d blocks in the selection."):format(#WE.Selection))
+        WE.sendChat(("There are %d blocks in the selection."):format(#WE.selection))
     end
 end
 
 function sel.set(silent)
     --http://wiki.sk89q.com/wiki/WorldEdit/Region_operations#Setting_blocks
-    local Blocks2, Meta2, Percentages, TotalPercent, Pipes = parseBlockPatterns()
-    if not WE.convertName(Blocks2, Meta2) then
+    local blocks2, meta2, percentages, totalPercent, pipes = parseBlockPatterns()
+    if not WE.convertName(blocks2, meta2) then
         WE.sendChat "Could not convert names. Was there a typo?"
         return
     end
@@ -327,34 +327,34 @@ function sel.set(silent)
     local iterations = 0
     silent = silent or WE.forceSilent
 
-    if #WE.Selection > 0 then
+    if #WE.selection > 0 then
         if not silent then
             WE.sendChat "Scanning..."
         end
-        local blocksTbl = WE.selectLargeArea(WE.Selection.pos1.x, WE.Selection.pos1.y, WE.Selection.pos1.z, WE.Selection.pos2.x, WE.Selection.pos2.y, WE.Selection.pos2.z, 4096, true)
+        local blocksTbl = WE.selectLargeArea(WE.selection.pos1.x, WE.selection.pos1.y, WE.selection.pos1.z, WE.selection.pos2.x, WE.selection.pos2.y, WE.selection.pos2.z, 4096, true)
         if not silent then
             WE.sendChat "Scanning complete!"
         end
         local set = false
-        for i in (WE.RandomSetOrder and randomIPairs or ipairs)(WE.Selection) do
+        for i in (WE.randomSetOrder and randomIPairs or ipairs)(WE.selection) do
             --Go through all of the blocks in the selection...
-            local x = WE.Selection[i].x
-            local y = WE.Selection[i].y
-            local z = WE.Selection[i].z
-            local blockChanged, BlockType, RandomRoll
-            if #Blocks2 > 0 then
-                if TotalPercent ~= 0 then
+            local x = WE.selection[i].x
+            local y = WE.selection[i].y
+            local z = WE.selection[i].z
+            local blockChanged, blockType, RandomRoll
+            if #blocks2 > 0 then
+                if totalPercent ~= 0 then
                     repeat
-                        BlockType = math.random(1, #Blocks2)
-                        RandomRoll = math.frandom(0, TotalPercent)
-                    until RandomRoll <= tonumber(Percentages[BlockType]) --Pick weighted random numbers, so that it picks a block randomly using the probabilities given by the user.
+                        blockType = math.random(1, #blocks2)
+                        RandomRoll = math.frandom(0, totalPercent)
+                    until RandomRoll <= tonumber(percentages[blockType]) --Pick weighted random numbers, so that it picks a block randomly using the probabilities given by the user.
                 else
-                    BlockType = 1 --If there's only one block, use it!
+                    blockType = 1 --If there's only one block, use it!
                 end
-                local NBT = Pipes[BlockType] and WE.pipeBlocks[WE.idToMCName(Blocks2[BlockType])](stringx.split(Pipes[BlockType], "|"))
-                blockChanged = NBT or WE.blockHasChanged(x, y, z, Blocks2[BlockType], Meta2[BlockType], blocksTbl, true)
+                local nbt = pipes[blockType] and WE.pipeBlocks[WE.idToMCName(blocks2[blockType])](stringx.split(pipes[blockType], "|"))
+                blockChanged = nbt or WE.blockHasChanged(x, y, z, blocks2[blockType], meta2[blockType], blocksTbl, true)
                 if blockChanged then
-                    WE.setBlock(x, y, z, Blocks2[BlockType], Meta2[BlockType], NBT)
+                    WE.setBlock(x, y, z, blocks2[blockType], meta2[blockType], nbt)
                     iterations = iterations + 1 --Count how many blocks actually changed.
                 end
                 if not set and not silent then
@@ -371,7 +371,7 @@ end
 
 function sel.replace(silent)
     --http://wiki.sk89q.com/wiki/WorldEdit/Region_operations#Replacing_blocks
-    local Blocks, Meta, Blocks2, Meta2, Percentages, TotalPercent, Pipes = parseBlockPatterns(WE.normalArgs)
+    local Blocks, Meta, Blocks2, Meta2, Percentages, TotalPercent, _ = parseBlockPatterns(WE.normalArgs)
     if not all(WE.convertName(Blocks, Meta), WE.convertName(Blocks2, Meta2)) then
         WE.sendChat "Could not convert names. Was there a typo?"
         return
@@ -380,12 +380,12 @@ function sel.replace(silent)
     local iterations = 0
     silent = silent or WE.forceSilent
     local tbl
-    if #WE.Selection > 0 then
-        for i in (WE.RandomSetOrder and randomIPairs or ipairs)(WE.Selection) do
+    if #WE.selection > 0 then
+        for i in (WE.randomSetOrder and randomIPairs or ipairs)(WE.selection) do
             --Go through all of the blocks in the selection...
-            local x = WE.Selection[i].x
-            local y = WE.Selection[i].y
-            local z = WE.Selection[i].z
+            local x = WE.selection[i].x
+            local y = WE.selection[i].y
+            local z = WE.selection[i].z
             local BlockType, RandomRoll
             if TotalPercent ~= 0 then
                 repeat
@@ -396,8 +396,8 @@ function sel.replace(silent)
                 BlockType = 1
             end
             if not WE.isCommandComputer then
-                for i = 1, #Blocks do
-                    if WE.blockEquals(x, y, z, Blocks[i], Meta[i]) then
+                for j = 1, #Blocks do
+                    if WE.blockEquals(x, y, z, Blocks[j], Meta[j]) then
                         --If they match any of them...
                         WE.setBlock(x, y, z, Blocks2[BlockType], Meta2[BlockType])
                         iterations = iterations + 1 --Count how many blocks were changed.
@@ -409,13 +409,13 @@ function sel.replace(silent)
                     if not silent then
                         WE.sendChat "Scanning..."
                     end
-                    tbl = WE.selectLargeArea(WE.Selection.pos1.x, WE.Selection.pos1.y, WE.Selection.pos1.z, WE.Selection.pos2.x, WE.Selection.pos2.y, WE.Selection.pos2.z, 4096, true)
+                    tbl = WE.selectLargeArea(WE.selection.pos1.x, WE.selection.pos1.y, WE.selection.pos1.z, WE.selection.pos2.x, WE.selection.pos2.y, WE.selection.pos2.z, 4096, true)
                     if not silent then
                         WE.sendChat "Scanning complete!"
                     end
                 end
-                for i = 1, #Blocks do
-                    if tbl[x][y][z].name == (WE.idToMCName(Blocks[i]) or Blocks[i]) and (tbl[x][y][z].metadata == Meta[i] or Meta[i] < 0) then
+                for j = 1, #Blocks do
+                    if tbl[x][y][z].name == (WE.idToMCName(Blocks[j]) or Blocks[j]) and (tbl[x][y][z].metadata == Meta[j] or Meta[j] < 0) then
                         WE.setBlock(x, y, z, Blocks2[BlockType], Meta2[BlockType])
                         iterations = iterations + 1 --Count how many blocks were changed.
                         break
@@ -439,14 +439,14 @@ function sel.naturalize(silent)
     silent = silent or WE.forceSilent
     local BlocksTbl
     if WE.isCommandComputer then
-        BlocksTbl = WE.selectLargeArea(WE.Selection.pos1.x, WE.Selection.pos1.y, WE.Selection.pos1.z, WE.Selection.pos2.x, WE.Selection.pos2.y, WE.Selection.pos2.z, 4096, true)
+        BlocksTbl = WE.selectLargeArea(WE.selection.pos1.x, WE.selection.pos1.y, WE.selection.pos1.z, WE.selection.pos2.x, WE.selection.pos2.y, WE.selection.pos2.z, 4096, true)
     end
     local hasSet = false
-    for i in (WE.RandomSetOrder and randomIPairs or ipairs)(Map) do
+    for i in (WE.randomSetOrder and randomIPairs or ipairs)(Map) do
         local x, y, z = Map[i].x, Map[i].y, Map[i].z
         if y then
-            for j = 0, Map[i].y - math.min(WE.Selection.pos1.y, WE.Selection.pos2.y) do
-                local ID = BlocksTbl and WE.MCNameToID(BlocksTbl[x][y - j][z].name) or tonumber(WE.getBlockID(x, y - j, z))
+            for j = 0, Map[i].y - math.min(WE.selection.pos1.y, WE.selection.pos2.y) do
+                local ID = BlocksTbl and WE.mcNameToID(BlocksTbl[x][y - j][z].name) or tonumber(WE.getBlockID(x, y - j, z))
                 if ID == 1 or ID == 2 or ID == 3 then
                     local naturalBlockID = j > 3 and 1 or (j == 0 and 2) or 3
                     if WE.blockHasChanged(x, y - j, z, naturalBlockID, 0) then
@@ -468,15 +468,15 @@ end
 
 function sel.overlay(silent)
     --Overlays the selection with the given block
-    local Blocks2, Meta2, Percentages, TotalPercent, Pipes = parseBlockPatterns()
+    local Blocks2, Meta2, Percentages, TotalPercent, _ = parseBlockPatterns()
     local count = 0
     local iterations = 0
     local Map = heightmap()
     local BlockType
     local hasSet = false
     silent = silent or WE.forceSilent
-    for i in (WE.RandomSetOrder and randomIPairs or ipairs)(Map) do
-        if tonumber(Map[i].y) and (SelectionType == "cuboid" and tonumber(Map[i].y) <= math.max(WE.Selection.pos1.y, WE.Selection.pos2.y) or SelectionType ~= "cuboid") then
+    for i in (WE.randomSetOrder and randomIPairs or ipairs)(Map) do
+        if tonumber(Map[i].y) and (SelectionType == "cuboid" and tonumber(Map[i].y) <= math.max(WE.selection.pos1.y, WE.selection.pos2.y) or SelectionType ~= "cuboid") then
             local x, y, z = Map[i].x, Map[i].y + 1, Map[i].z
             count = count + 1
             if TotalPercent ~= 0 then
@@ -538,30 +538,30 @@ function sel.shift(silent)
     local fields = { east = "x", west = "x", north = "z", south = "z", up = "y", down = "y" }
     local mult = { east = 1, west = -1, north = -1, south = 1, up = 1, down = -1 }
     local field = fields[direction]
-    for i = 1, #WE.Selection do
-        WE.Selection[i][field] = WE.Selection[i][field] + shiftAmt * mult[direction] --Shift each block in the selection over in the correct direction.
+    for i = 1, #WE.selection do
+        WE.selection[i][field] = WE.selection[i][field] + shiftAmt * mult[direction] --Shift each block in the selection over in the correct direction.
     end
     for i = 1, #WE.pos do
         WE.pos[i][field] = WE.pos[i][field] + shiftAmt * mult[direction] --Shift each position over as well
     end
-    if WE.makeSelection[WE.Selection.type] then
-        WE.makeSelection[WE.Selection.type]()
+    if WE.makeSelection[WE.selection.type] then
+        WE.makeSelection[WE.selection.type]()
     else
-        WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+        WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
         return
     end
     if not silent then
-        WE.sendChat(("Region shifted %d block%s %s. (%d)"):format(shiftAmt, shiftAmt ~= 1 and "s" or "", direction, #WE.Selection))
+        WE.sendChat(("Region shifted %d block%s %s. (%d)"):format(shiftAmt, shiftAmt ~= 1 and "s" or "", direction, #WE.selection))
     end
 end
 
 function sel.chunk()
     --- Sets the selection to the chunk the player is in.
-    WE.Selection = {}
+    WE.selection = {}
     WE.px, WE.py, WE.pz = math.floor(WE.getPlayerPos(WE.username))
     WE.pos = setmetatable({ pos1 = { x = WE.px - WE.px % 16, y = 0, z = WE.pz - WE.pz % 16 }, pos2 = { x = WE.px - WE.px % 16 + 16, y = 256, z = WE.pz - WE.pz % 16 + 16 } }, getmetatable(WE.pos))
     WE.makeSelection.cuboid()
-    WE.Selection.type = "cuboid"
+    WE.selection.type = "cuboid"
     WE.sendChat "Selection set to the chunk the player is in."
 end
 

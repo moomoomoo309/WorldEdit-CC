@@ -1,4 +1,4 @@
-WE.BlockNames = {
+WE.blockNames = {
     { "stone", "rock" },
     { "grass" },
     { "dirt" },

@@ -46,7 +46,7 @@ local function edge(point1, point2)
     return rv
 end
 
-WE.Selection = WE.Selection or {} --Only create globals in the outermost scope.
+WE.selection = WE.selection or {} --Only create globals in the outermost scope.
 WE.pos = WE.pos or {}
 
 function WE.makeSelection.poly()
@@ -85,7 +85,7 @@ function WE.makeSelection.poly()
         x = Min.x - 1,
         z = Min.z - 1
     }
-    WE.Selection = { pos1 = Min, pos2 = Max, points = WE.pos, type = "poly" }
+    WE.selection = { pos1 = Min, pos2 = Max, points = WE.pos, type = "poly" }
     for x = Min.x, Max.x do
         for z = Min.z, Max.z do
             local currPos = {
@@ -101,7 +101,7 @@ function WE.makeSelection.poly()
             end
             if numCol % 2 == 1 then
                 for y = Min.y, Max.y do
-                    table.insert(WE.Selection, { x = x, y = y, z = z })
+                    table.insert(WE.selection, { x = x, y = y, z = z })
                 end
             end
         end

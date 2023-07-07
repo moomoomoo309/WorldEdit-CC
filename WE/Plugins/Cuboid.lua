@@ -22,13 +22,13 @@ function cuboid.expand() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Expand
     if isVert then
         WE.pos[1].y = 1
         WE.pos[2].y = 256
-        if WE.makeSelection[WE.Selection.type] then
-            WE.makeSelection[WE.Selection.type]()
+        if WE.makeSelection[WE.selection.type] then
+            WE.makeSelection[WE.selection.type]()
         else
-            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
             return
         end
-        WE.sendChat(("Region expanded vertically. (%d)"):format(#WE.Selection))
+        WE.sendChat(("Region expanded vertically. (%d)"):format(#WE.selection))
         return
     end
     direction = direction or WE.getDirection(true):lower()
@@ -46,7 +46,7 @@ function cuboid.expand() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Expand
         end
     end
     if beforeComma and afterComma then
-        if WE.Direction == "east" then
+        if WE.direction == "east" then
             if WE.pos[1].x >= WE.pos[2].x then
                 WE.pos[1].x = WE.pos[1].x + beforeComma
                 WE.pos[2].x = WE.pos[2].x - afterComma
@@ -54,7 +54,7 @@ function cuboid.expand() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Expand
                 WE.pos[1].x = WE.pos[1].x - afterComma
                 WE.pos[2].x = WE.pos[2].x + beforeComma
             end
-        elseif WE.Direction == "west" then
+        elseif WE.direction == "west" then
             if WE.pos[1].x >= WE.pos[2].x then
                 WE.pos[1].x = WE.pos[1].x + afterComma
                 WE.pos[2].x = WE.pos[2].x - beforeComma
@@ -62,7 +62,7 @@ function cuboid.expand() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Expand
                 WE.pos[1].x = WE.pos[1].x - beforeComma
                 WE.pos[2].x = WE.pos[2].x + afterComma
             end
-        elseif WE.Direction == "up" then
+        elseif WE.direction == "up" then
             if WE.pos[1].y >= WE.pos[2].y then
                 WE.pos[1].y = WE.pos[1].y + beforeComma
                 WE.pos[2].y = WE.pos[2].y - afterComma
@@ -70,7 +70,7 @@ function cuboid.expand() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Expand
                 WE.pos[1].y = WE.pos[1].y - afterComma
                 WE.pos[2].y = WE.pos[2].y + beforeComma
             end
-        elseif WE.Direction == "down" then
+        elseif WE.direction == "down" then
             if WE.pos[1].y >= WE.pos[2].y then
                 WE.pos[1].y = WE.pos[1].y + afterComma
                 WE.pos[2].y = WE.pos[2].y - beforeComma
@@ -78,7 +78,7 @@ function cuboid.expand() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Expand
                 WE.pos[1].y = WE.pos[1].y - beforeComma
                 WE.pos[2].y = WE.pos[2].y + afterComma
             end
-        elseif WE.Direction == "north" then
+        elseif WE.direction == "north" then
             if WE.pos[1].z >= WE.pos[2].z then
                 WE.pos[1].z = WE.pos[1].z + afterComma
                 WE.pos[2].z = WE.pos[2].z - beforeComma
@@ -86,7 +86,7 @@ function cuboid.expand() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Expand
                 WE.pos[1].z = WE.pos[1].z - beforeComma
                 WE.pos[2].z = WE.pos[2].z + afterComma
             end
-        elseif WE.Direction == "south" then
+        elseif WE.direction == "south" then
             if WE.pos[1].z >= WE.pos[2].z then
                 WE.pos[1].z = WE.pos[1].z + beforeComma
                 WE.pos[2].z = WE.pos[2].z - afterComma
@@ -98,13 +98,13 @@ function cuboid.expand() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Expand
             WE.sendChat "Invalid direction."
             return
         end
-        if WE.makeSelection[WE.Selection.type] then
-            WE.makeSelection[WE.Selection.type]()
+        if WE.makeSelection[WE.selection.type] then
+            WE.makeSelection[WE.selection.type]()
         else
-            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
             return
         end
-        WE.sendChat("Region expanded " .. beforeComma .. " block" .. ((tonumber(beforeComma) > 1 and "s") or "") .. " " .. WE.Direction .. " and " .. afterComma .. " block" .. ((tonumber(afterComma) > 1 and "s") or "") .. " " .. WE.oppositeDirection(WE.Direction) .. "." .. " (" .. #WE.Selection .. ")")
+        WE.sendChat("Region expanded " .. beforeComma .. " block" .. ((tonumber(beforeComma) > 1 and "s") or "") .. " " .. WE.direction .. " and " .. afterComma .. " block" .. ((tonumber(afterComma) > 1 and "s") or "") .. " " .. WE.oppositeDirection(WE.direction) .. "." .. " (" .. #WE.selection .. ")")
     else
         if not tonumber(amt) then
             WE.sendChat("\"" .. amt .. "\" is not a number!")
@@ -112,37 +112,37 @@ function cuboid.expand() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Expand
         else
             amt = tonumber(amt)
         end
-        if WE.Direction == "east" then
+        if WE.direction == "east" then
             if WE.pos[1].x > WE.pos[2].x then
                 WE.pos[1].x = WE.pos[1].x + amt
             else
                 WE.pos[2].x = WE.pos[2].x + amt
             end
-        elseif WE.Direction == "west" then
+        elseif WE.direction == "west" then
             if WE.pos[1].x > WE.pos[2].x then
                 WE.pos[2].x = WE.pos[2].x - amt
             else
                 WE.pos[1].x = WE.pos[1].x - amt
             end
-        elseif WE.Direction == "up" then
+        elseif WE.direction == "up" then
             if WE.pos[1].y > WE.pos[2].y then
                 WE.pos[1].y = WE.pos[1].y + amt
             else
                 WE.pos[2].y = WE.pos[2].y + amt
             end
-        elseif WE.Direction == "down" then
+        elseif WE.direction == "down" then
             if WE.pos[1].y > WE.pos[2].y then
                 WE.pos[2].y = WE.pos[2].y - amt
             else
                 WE.pos[1].y = WE.pos[1].y - amt
             end
-        elseif WE.Direction == "north" then
+        elseif WE.direction == "north" then
             if WE.pos[1].z > WE.pos[2].z then
                 WE.pos[2].z = WE.pos[2].z - amt
             else
                 WE.pos[1].z = WE.pos[1].z - amt
             end
-        elseif WE.Direction == "south" then
+        elseif WE.direction == "south" then
             if WE.pos[1].z > WE.pos[2].z then
                 WE.pos[1].z = WE.pos[1].z + amt
             else
@@ -152,13 +152,13 @@ function cuboid.expand() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Expand
             WE.sendChat "Invalid direction."
             return
         end
-        if WE.makeSelection[WE.Selection.type] then
-            WE.makeSelection[WE.Selection.type]()
+        if WE.makeSelection[WE.selection.type] then
+            WE.makeSelection[WE.selection.type]()
         else
-            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
             return
         end
-        WE.sendChat("Region expanded " .. tonumber(amt) .. " block" .. ((tonumber(amt) > 1 and "s") or "") .. " " .. WE.Direction .. "." .. " (" .. #WE.Selection .. ")")
+        WE.sendChat("Region expanded " .. tonumber(amt) .. " block" .. ((tonumber(amt) > 1 and "s") or "") .. " " .. WE.direction .. "." .. " (" .. #WE.selection .. ")")
     end
 end
 
@@ -193,7 +193,7 @@ function cuboid.contract() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Cont
         end
     end
     if beforeComma and afterComma then
-        if WE.Direction == "west" then
+        if WE.direction == "west" then
             if WE.pos[1].x >= WE.pos[2].x then
                 WE.pos[1].x = WE.pos[1].x - beforeComma
                 WE.pos[2].x = WE.pos[2].x + afterComma
@@ -201,7 +201,7 @@ function cuboid.contract() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Cont
                 WE.pos[1].x = WE.pos[1].x + afterComma
                 WE.pos[2].x = WE.pos[2].x - beforeComma
             end
-        elseif WE.Direction == "east" then
+        elseif WE.direction == "east" then
             if WE.pos[1].x >= WE.pos[2].x then
                 WE.pos[1].x = WE.pos[1].x + afterComma
                 WE.pos[2].x = WE.pos[2].x - beforeComma
@@ -209,7 +209,7 @@ function cuboid.contract() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Cont
                 WE.pos[1].x = WE.pos[1].x - beforeComma
                 WE.pos[2].x = WE.pos[2].x + afterComma
             end
-        elseif WE.Direction == "north" then
+        elseif WE.direction == "north" then
             if WE.pos[1].z >= WE.pos[2].z then
                 WE.pos[1].z = WE.pos[1].z - afterComma
                 WE.pos[2].z = WE.pos[2].z + beforeComma
@@ -217,7 +217,7 @@ function cuboid.contract() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Cont
                 WE.pos[1].z = WE.pos[1].z + beforeComma
                 WE.pos[2].z = WE.pos[2].z - afterComma
             end
-        elseif WE.Direction == "south" then
+        elseif WE.direction == "south" then
             if WE.pos[1].z >= WE.pos[2].z then
                 WE.pos[1].z = WE.pos[1].z - beforeComma
                 WE.pos[2].z = WE.pos[2].z + afterComma
@@ -225,7 +225,7 @@ function cuboid.contract() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Cont
                 WE.pos[1].z = WE.pos[1].z + afterComma
                 WE.pos[2].z = WE.pos[2].z - beforeComma
             end
-        elseif WE.Direction == "up" then
+        elseif WE.direction == "up" then
             if WE.pos[1].y >= WE.pos[2].y then
                 WE.pos[1].y = math.max(0, math.min(WE.pos[1].y - beforeComma, 256))
                 WE.pos[2].y = math.max(0, math.min(WE.pos[2].y + afterComma, 256))
@@ -240,13 +240,13 @@ function cuboid.contract() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Cont
             WE.pos[1].y = math.max(0, math.min(WE.pos[1].y + beforeComma, 256))
             WE.pos[2].y = math.max(0, math.min(WE.pos[2].y - afterComma, 256))
         end
-        if WE.makeSelection[WE.Selection.type] then
-            WE.makeSelection[WE.Selection.type]()
+        if WE.makeSelection[WE.selection.type] then
+            WE.makeSelection[WE.selection.type]()
         else
-            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
             return
         end
-        WE.sendChat("Region contracted " .. beforeComma .. " block" .. ((tonumber(beforeComma) > 1 and "s") or "") .. " " .. WE.Direction .. " and " .. afterComma .. " block" .. ((tonumber(afterComma) > 1 and "s") or "") .. " " .. WE.oppositeDirection(WE.Direction) .. ".")
+        WE.sendChat("Region contracted " .. beforeComma .. " block" .. ((tonumber(beforeComma) > 1 and "s") or "") .. " " .. WE.direction .. " and " .. afterComma .. " block" .. ((tonumber(afterComma) > 1 and "s") or "") .. " " .. WE.oppositeDirection(WE.direction) .. ".")
     else
         if not tonumber(command) then
             WE.sendChat(("\"%s\" is not a number!"):format(amt))
@@ -254,37 +254,37 @@ function cuboid.contract() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Cont
         else
             amt = tonumber(amt)
         end
-        if WE.Direction == "west" then
+        if WE.direction == "west" then
             if WE.pos[1].x > WE.pos[2].x then
                 WE.pos[1].x = WE.pos[1].x - amt
             else
                 WE.pos[2].x = WE.pos[2].x - amt
             end
-        elseif WE.Direction == "east" then
+        elseif WE.direction == "east" then
             if WE.pos[1].x > WE.pos[2].x then
                 WE.pos[2].x = WE.pos[2].x + amt
             else
                 WE.pos[1].x = WE.pos[1].x + amt
             end
-        elseif WE.Direction == "north" then
+        elseif WE.direction == "north" then
             if WE.pos[1].z > WE.pos[2].z then
                 WE.pos[2].z = WE.pos[2].z + amt
             else
                 WE.pos[1].z = WE.pos[1].z + amt
             end
-        elseif WE.Direction == "south" then
+        elseif WE.direction == "south" then
             if WE.pos[1].z > WE.pos[2].z then
                 WE.pos[1].z = WE.pos[1].z - amt
             else
                 WE.pos[2].z = WE.pos[2].z - amt
             end
-        elseif WE.Direction == "up" then
+        elseif WE.direction == "up" then
             if WE.pos[1].y > WE.pos[2].y then
                 WE.pos[1].y = math.max(0, math.min(WE.pos[1].y - amt, 256))
             else
                 WE.pos[2].y = math.max(0, math.min(WE.pos[2].y - amt, 256))
             end
-        elseif WE.Direction == "down" then
+        elseif WE.direction == "down" then
             if WE.pos[1].y > WE.pos[2].y then
                 WE.pos[2].y = math.max(0, math.min(WE.pos[2].y + amt, 256))
             else
@@ -294,13 +294,13 @@ function cuboid.contract() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Cont
             WE.sendChat "Incorrect direction."
             return
         end
-        if WE.makeSelection[WE.Selection.type] then
-            WE.makeSelection[WE.Selection.type]()
+        if WE.makeSelection[WE.selection.type] then
+            WE.makeSelection[WE.selection.type]()
         else
-            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
             return
         end
-        WE.sendChat("Region contracted " .. amt .. " block" .. ((amt > 1 and "s") or "") .. " " .. WE.Direction .. "." .. " (" .. #WE.Selection .. ")")
+        WE.sendChat("Region contracted " .. amt .. " block" .. ((amt > 1 and "s") or "") .. " " .. WE.direction .. "." .. " (" .. #WE.selection .. ")")
     end
 end
 
@@ -333,10 +333,10 @@ function cuboid.inset() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Contrac
         WE.sendChat("\"" .. amt .. "\" is not a number!")
         return
     end
-    if WE.makeSelection[WE.Selection.type] then
-        WE.makeSelection[WE.Selection.type]()
+    if WE.makeSelection[WE.selection.type] then
+        WE.makeSelection[WE.selection.type]()
     else
-        WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+        WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
         return
     end
     WE.sendChat("Selection inset " .. amt .. " block" .. ((tonumber(amt) > 1 and "s") or "") .. ".")
@@ -368,10 +368,10 @@ function cuboid.outset() --http://wiki.sk89q.com/wiki/WorldEdit/Selection#Contra
             WE.pos[2].y = math.max(0, math.min(WE.pos[2].y + amt, 256))
         end
     end
-    if WE.makeSelection[WE.Selection.type] then
-        WE.makeSelection[WE.Selection.type]()
+    if WE.makeSelection[WE.selection.type] then
+        WE.makeSelection[WE.selection.type]()
     else
-        WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+        WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
         return
     end
     WE.sendChat("Selection outset " .. amt .. " block" .. ((tonumber(amt) > 1 and "s") or "") .. ".")
@@ -379,16 +379,16 @@ end
 
 function WE.makeSelection.cuboid()
     --- Makes a cuboid selection given two points are selected.
-    WE.Selection = { pos1 = WE.pos[1], pos2 = WE.pos[2], type = "cuboid" }
+    WE.selection = { pos1 = WE.pos[1], pos2 = WE.pos[2], type = "cuboid" }
     for x = math.min(WE.pos[1].x, WE.pos[2].x), math.max(WE.pos[1].x, WE.pos[2].x) do
         for y = math.min(WE.pos[1].y, WE.pos[2].y), math.max(WE.pos[1].y, WE.pos[2].y) do
             for z = math.min(WE.pos[1].z, WE.pos[2].z), math.max(WE.pos[1].z, WE.pos[2].z) do
-                WE.Selection[#WE.Selection + 1] = { x = x, y = y, z = z }
+                WE.selection[#WE.selection + 1] = { x = x, y = y, z = z }
             end
         end
     end
     WE.writeSelection()
-    return WE.Selection
+    return WE.selection
 end
 
 WE.registerCommand("inset", cuboid.inset, WE.hasSelection, WE.missingPos)

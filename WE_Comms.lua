@@ -39,10 +39,10 @@ local function customRead(history)
     term.setCursorBlink(true)
 
     local line = ""
-    local nHistoryPos = nil
+    local nHistoryPos
     local nPos = 0
 
-    local w, h = term.getSize()
+    local w, _ = term.getSize()
     local sx, sy = term.getCursorPos()
 
     local function redraw()
@@ -182,11 +182,10 @@ local function getUsername(username) --Prompts the user for their username.
     return username
 end
 
-local username = getUsername(getUsernameFromFile())
 local function sendMessage(message, username)
     local modem = false
     while true do
-        for k, v in pairs(peripheral.getNames()) do
+        for _, v in pairs(peripheral.getNames()) do
             if peripheral.getType(v) == "modem" then
                 modem = true
                 rednet.open(v)
@@ -201,6 +200,7 @@ local function sendMessage(message, username)
     end
 end
 
+local username = getUsername(getUsernameFromFile())
 print "Type your command:"
 local message
 while true do --Main loop

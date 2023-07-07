@@ -32,7 +32,7 @@ local function customRead(history)
     local nHistoryPos
     local nPos = 0
 
-    local w, h = term.getSize()
+    local w = term.getSize()
     local sx, sy = term.getCursorPos()
 
     local function redraw()

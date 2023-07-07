@@ -14,8 +14,8 @@
 
 --Local vars, so as to not fill the global namespace
 WE = {
-    Selection = {},
-    ClipboardPath = "Clipboard", --The maximum number of positions allowed for selection types.
+    selection = {},
+    clipboardPath = "Clipboard",
     blockBlacklist = {},
     makeSelection = {},
     plugins = {},
@@ -23,17 +23,17 @@ WE = {
     tasks = {},
     taskFcts = {},
 }
-local ConfigAPIPath = "NewConfigAPI.lua"
-local SelectionPath = "Selection"
-local IDPath = "trustedIDs"
-local PluginPath = "Plugins"
-local TaskPath = "Tasks"
+local configAPIPath = "NewConfigAPI.lua"
+local selectionPath = "Selection"
+local idPath = "trustedIDs"
+local pluginPath = "Plugins"
+local taskPath = "Tasks"
 local p, w, pl, ent
 local currentCmds
 local firstPos
 local endProgram
 local debug
-local ConfigPath
+local configPath
 local taskAmt
 local _ --All unused variables will use this name!
 
@@ -61,14 +61,14 @@ end
 function WE.idToMCName(id, removeMinecraft)
     if tonumber(id) and tonumber(id) <= 175 then
         id = tonumber(id)
-        return (removeMinecraft and WE.MCNames[id]:sub(1, 11) == "minecraft:" and WE.MCNames[id]:sub(11)) or WE.MCNames[id] or id
+        return (removeMinecraft and WE.mcNames[id]:sub(1, 11) == "minecraft:" and WE.mcNames[id]:sub(11)) or WE.mcNames[id] or id
     end
 end
 
 --Converts a block's name to its block ID (vanilla blocks only!)
-function WE.MCNameToID(name, addMinecraft)
+function WE.mcNameToID(name, addMinecraft)
     if type(name) == "string" then
-        return tonumber(WE.IDs[((addMinecraft and name:sub(1, 11) ~= "minecraft:" and "minecraft:" .. name) or name)])
+        return tonumber(WE.ids[((addMinecraft and name:sub(1, 11) ~= "minecraft:" and "minecraft:" .. name) or name)])
     end
 end
 
@@ -96,7 +96,7 @@ end
 
 function WE.getBlockID(x, y, z)
     --- Gets the block ID or the name of the block at the given coordinates.
-    return (not WE.isCommandComputer and WE.getBlockID(x, y, z)) or WE.MCNameToID(commands.getBlockInfo(x, y, z).name) or commands.getBlockInfo(x, y, z).name
+    return (not WE.isCommandComputer and WE.getBlockID(x, y, z)) or WE.mcNameToID(commands.getBlockInfo(x, y, z).name) or commands.getBlockInfo(x, y, z).name
 end
 
 function WE.getMetadata(x, y, z)
@@ -108,7 +108,7 @@ local function setBlockWithoutNBT(x, y, z, id, meta)
     --- Sets the block at the given coords to the given ID and metadata using either the adventure map interface or a command computer.
     meta = tonumber(meta)
     if not WE.isCommandComputer then
-        return w.setBlockWithoutNotify(x, y, z, tonumber(id) or WE.MCNameToID(id), meta) --Set the block to the appropriate block type.
+        return w.setBlockWithoutNotify(x, y, z, tonumber(id) or WE.mcNameToID(id), meta) --Set the block to the appropriate block type.
     else
         coroutine.yield() --Slows down the block setting tremendously, but prevents "too long without yielding" errors.
         taskAmt = taskAmt and taskAmt + 1 or 1
@@ -183,9 +183,9 @@ end
 -- Using metatables, it can do both!
 local function resetPos(tbl)
     --- Resets pos to the given value, resetting its metatable and setting its values to what's provided (or an empty table)
-    WE.pos = setmetatable(tbl or { firstPos = false, type = WE.Selection.type or "cuboid" }, {
+    WE.pos = setmetatable(tbl or { firstPos = false, type = WE.selection.type or "cuboid" }, {
         __call = function(_, numPosition)
-            numPosition = numPosition or (WE.Selection.type == "cuboid" or (WE.Selection and WE.Selection.type == "cuboid")) and ((function()
+            numPosition = numPosition or (WE.selection.type == "cuboid" or (WE.selection and WE.selection.type == "cuboid")) and ((function()
                 WE.pos.firstPos = not WE.pos.firstPos return WE.pos.firstPos
             end)() and 1 or 2) or #WE.pos + 1
             WE.pos[numPosition] = WE.pos[numPosition] or {}
@@ -193,25 +193,25 @@ local function resetPos(tbl)
             WE.pos[numPosition].y = WE.pos[numPosition].y - 1 --Select the block UNDERNEATH them, not the block they're in.
             WE.pos[numPosition].x, WE.pos[numPosition].y, WE.pos[numPosition].z = math.floor(WE.pos[numPosition].x, WE.pos[numPosition].y, WE.pos[numPosition].z)
             if WE.pos[1] and WE.pos[2] and WE.pos[1].x and WE.pos[2].x and WE.pos[1].y and WE.pos[2].y and WE.pos[1].z and WE.pos[2].z then
-                if WE.makeSelection[WE.Selection.type] then
-                    WE.makeSelection[WE.Selection.type]()
+                if WE.makeSelection[WE.selection.type] then
+                    WE.makeSelection[WE.selection.type]()
                 else
-                    WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+                    WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
                     return
                 end
             end
-            WE.sendChat(("%s position set to (%d, %d, %d)%s"):format(numToOrdinalForm(numPosition), WE.pos[numPosition].x, WE.pos[numPosition].y, WE.pos[numPosition].z, ((#WE.Selection > 0 and (" (" .. #WE.Selection .. ")")) or "")))
-            WE.pos.type = WE.Selection.type
+            WE.sendChat(("%s position set to (%d, %d, %d)%s"):format(numToOrdinalForm(numPosition), WE.pos[numPosition].x, WE.pos[numPosition].y, WE.pos[numPosition].z, ((#WE.selection > 0 and (" (" .. #WE.selection .. ")")) or "")))
+            WE.pos.type = WE.selection.type
             WE.writeSelection()
         end
     })
 end
 
-function WE.writeSelection(Selection)
+function WE.writeSelection()
     --- Saves the current positions to a file.
-    if SelectionPath and SelectionPath ~= "" then
+    if selectionPath and selectionPath ~= "" then
         --Load the last selection from file, if it exists.
-        local f = fs.open(WE.ConfigFolder .. SelectionPath, "w")
+        local f = fs.open(WE.configFolder .. selectionPath, "w")
         f.write(textutils.serialize(WE.pos))
         f.close()
     end
@@ -219,27 +219,27 @@ end
 
 local function readSelection()
     --- Load the last selection from file, if it exists.
-    if SelectionPath and SelectionPath ~= "" and fs.exists(WE.ConfigFolder .. SelectionPath) then
-        local f = fs.open(WE.ConfigFolder .. SelectionPath, "r")
+    if selectionPath and selectionPath ~= "" and fs.exists(WE.configFolder .. selectionPath) then
+        local f = fs.open(WE.configFolder .. selectionPath, "r")
         resetPos(textutils.unserialize(f.readAll()))
         f.close()
         if all(WE.pos[1], WE.pos[2]) and all(WE.pos[1].x, WE.pos[1].y, WE.pos[1].z, WE.pos[2].x, WE.pos[2].y, WE.pos[2].z) then
-            if WE.makeSelection[WE.Selection.type] then
-                WE.makeSelection[WE.Selection.type]()
+            if WE.makeSelection[WE.selection.type] then
+                WE.makeSelection[WE.selection.type]()
             else
-                WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+                WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
                 return
             end
         end
     end
-    WE.Selection = WE.Selection or {}
+    WE.selection = WE.selection or {}
 end
 
 function WE.writeIDs()
     --- Writes the list of trusted rednet IDs to a file.
-    if IDPath and IDPath ~= "" then
-        --Load the WE.IDs from file, if they exist.
-        local f = fs.open(WE.ConfigFolder .. IDPath, "w")
+    if idPath and idPath ~= "" then
+        --Load the WE.ids from file, if they exist.
+        local f = fs.open(WE.configFolder .. idPath, "w")
         f.write(textutils.serialize(WE.trustedIDs))
         f.close()
     end
@@ -247,9 +247,9 @@ end
 
 function WE.readIDs()
     --- Reads the list of trusted rednet IDs from a file.
-    if SelectionPath and IDPath ~= "" and fs.exists(WE.ConfigFolder .. IDPath) then
-        --Load the WE.IDs from file, if they exist.
-        local f = fs.open(WE.ConfigFolder .. IDPath, "r")
+    if selectionPath and idPath ~= "" and fs.exists(WE.configFolder .. idPath) then
+        --Load the WE.ids from file, if they exist.
+        local f = fs.open(WE.configFolder .. idPath, "r")
         local file = textutils.unserialize(f.readAll())
         f.close()
         return file
@@ -412,8 +412,8 @@ local function hpos(numPosition)
     if not tonumber(numPosition) then
         WE.sendChat "Specify a position!"
         return
-    elseif tonumber(numPosition) > WE.maxSel[WE.Selection.type] then
-        WE.sendChat(("Try and pick a position that'll be used. (1-%d)"):format(WE.maxSel[WE.Selection.type]))
+    elseif tonumber(numPosition) > WE.maxSel[WE.selection.type] then
+        WE.sendChat(("Try and pick a position that'll be used. (1-%d)"):format(WE.maxSel[WE.selection.type]))
         return
     end
     local playerInfo = getPlayerPositionAndLooking(WE.username)
@@ -450,15 +450,15 @@ local function hpos(numPosition)
     currX, currY, currZ = math.floor(currX, currY, currZ)
     WE.pos[numPosition] = { x = currX, y = currY, z = currZ }
     if all(WE.pos[1], WE.pos[2]) and all(WE.pos[1].x, WE.pos[1].y, WE.pos[1].z, WE.pos[2].x, WE.pos[2].y, WE.pos[2].z) then
-        if WE.makeSelection[WE.Selection.type] then
-            WE.makeSelection[WE.Selection.type]()
+        if WE.makeSelection[WE.selection.type] then
+            WE.makeSelection[WE.selection.type]()
         else
-            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.Selection.type))
+            WE.sendChat(("Selection mode %s not implemented correctly!"):format(WE.selection.type))
             return
         end
     end
-    WE.writeSelection(WE.Selection)
-    WE.sendChat(("%s position set to (%d, %d, %d).%s"):format(numToOrdinalForm(numPosition), currX, currY, currZ, (#WE.Selection > 0 and (" (%d)"):format(#WE.Selection or ""))))
+    WE.writeSelection()
+    WE.sendChat(("%s position set to (%d, %d, %d).%s"):format(numToOrdinalForm(numPosition), currX, currY, currZ, (#WE.selection > 0 and (" (%d)"):format(#WE.selection or ""))))
 end
 
 function WE.getFormattedBlockInfos(x, y, z, x2, y2, z2)
@@ -499,6 +499,14 @@ function WE.makeCuboidsOfVolume(xLen, yLen, zLen, volume)
     return solution
 end
 
+local function getNumIterations(start, stop, step)
+    return math.floor((stop - start) / step) + 1
+end
+
+local function getVol(x1, y1, z1, x2, y2, z2)
+    return (math.abs(x2 - x1) + 1) * (math.abs(y2 - y1) + 1) * (math.abs(z2 - z1) + 1)
+end
+
 function WE.selectLargeArea(x1, y1, z1, x2, y2, z2, volume, printProgress)
     volume = type(volume) == number and math.max(volume, 1) or 4096
     x1, y1, z1, x2, y2, z2 = map(tonumber, 1, x1, y1, z1, x2, y2, z2)
@@ -519,13 +527,6 @@ function WE.selectLargeArea(x1, y1, z1, x2, y2, z2, volume, printProgress)
         return WE.getFormattedBlockInfos(x1, y1, z1, x2, y2, z2)
     end
     cuboids = cuboids or { x = x2 - x1, y = y2 - y1, z = z2 - z1 }
-    local function getNumIterations(start, stop, step)
-        return math.floor((stop - start) / step) + 1
-    end
-
-    local function getVol(x1, y1, z1, x2, y2, z2)
-        return (math.abs(x2 - x1) + 1) * (math.abs(y2 - y1) + 1) * (math.abs(z2 - z1) + 1)
-    end
 
     local i, totalVol, newVol = 0, 0, 0
     local tbl
@@ -557,7 +558,7 @@ function WE.convertName(tbl, tbl2)
     if tbl and tbl2 then
         for i = 1, #tbl do
             if tonumber(tbl[i]) == nil then
-                for k, v in pairs(WE.BlockNames) do
+                for k, v in pairs(WE.blockNames) do
                     if tablex.find(v, tostring(tbl[i])) then
                         if k == 17 then
                             if tbl[i] == "pine" then
@@ -585,8 +586,8 @@ function WE.convertName(tbl, tbl2)
                             tbl[i] = k
                             break
                         end
-                    elseif next(WE.BlockNames, k) == nil then
-                        --The block is not in WE.BlockNames
+                    elseif next(WE.blockNames, k) == nil then
+                        --The block is not in WE.blockNames
                         WE.sendChat(("Invalid block: \"%s\", was it a typo?"):format(tbl[i]))
                         return false
                     end
@@ -610,25 +611,25 @@ function WE.getDirection(shouldReturn)
     end
 
     if between(xDir, .5, 1) then
-        WE.Direction = "east"
+        WE.direction = "east"
     elseif between(xDir, -.5, -1) then
-        WE.Direction = "west"
+        WE.direction = "west"
     elseif between(xDir, -.5, .5) and between(zDir, .5, 1) then
-        WE.Direction = "south"
+        WE.direction = "south"
     elseif between(xDir, -.5, .5) and between(zDir, -1, -.5) then
-        WE.Direction = "north"
+        WE.direction = "north"
     elseif yDir > 0.85 then
-        WE.Direction = "up"
+        WE.direction = "up"
     elseif yDir < -0.15 then
-        WE.Direction = "down"
+        WE.direction = "down"
     else
         WE.sendChat "I believe you are looking inside out."
         return false
     end
-    WE.Direction = WE.Direction:lower()
+    WE.direction = WE.direction:lower()
     --If shouldReturn is false, it's just modifying the Direction in the global table.
     if shouldReturn then
-        return WE.Direction
+        return WE.direction
     end
 end
 
@@ -655,18 +656,18 @@ end
 local function sel(numPos)
     --- Clears the selection at the given position, or altogether.
     numPos = tonumber(numPos) or tonumber(WE.normalArgs[1])
-    WE.Selection = {}
+    WE.selection = {}
     if #WE.normalArgs == 0 then
         resetPos()
         WE.sendChat "Selection cleared."
     elseif numPos then
         WE.pos[numPos] = nil
     elseif WE.makeSelection[WE.normalArgs[1]] then
-        WE.Selection.type = WE.normalArgs[1]
+        WE.selection.type = WE.normalArgs[1]
         WE.sendChat(("Selection type set to \"%s\""):format(WE.normalArgs[1]))
         resetPos()
     end
-    fs.delete(WE.ConfigFolder .. SelectionPath)
+    fs.delete(WE.configFolder .. selectionPath)
 end
 
 local helpText = {
@@ -831,7 +832,7 @@ end
 
 function WE.runCommands(msgOverride, forceSilentOverride)
     --- Runs the command corresponding to the current message.
-    WE.command, WE.normalArgs, WE.namedArgs, WE.shortSwitches, WE.longSwitches = parseCommandArgs(msgOverride or WE.OriginalMessage) --Get args from command
+    WE.command, WE.normalArgs, WE.namedArgs, WE.shortSwitches, WE.longSwitches = parseCommandArgs(msgOverride or WE.originalMessage) --Get args from command
     local oldForceSilent
     if forceSilentOverride ~= nil then
         oldForceSilent = WE.forceSilent
@@ -921,12 +922,12 @@ end
 
 local function loadPlugins(pluginFolder, pluginLocation)
     --- Load all of the plugins in the plugin folder.
-    pluginFolder = pluginFolder or WE.ConfigFolder .. PluginPath
+    pluginFolder = pluginFolder or WE.configFolder .. pluginPath
     pluginLocation = pluginLocation or WE.plugins
     if not fs.exists(pluginFolder) then
         fs.makeDir(pluginFolder) --Make sure the folder exists before loading plugins in it!
     end
-    for k, v in pairs(fs.list(pluginFolder)) do
+    for _, v in pairs(fs.list(pluginFolder)) do
         local success, pluginVal = pcall(loadPlugin, pluginFolder .. "/" .. v)
         if not success then
             WE.sendChat(("Error loading %s! Plugin errored in initialization!\nError Message: %s"):format(v, tostring(pluginVal)))
@@ -951,7 +952,7 @@ end
 
 function WE.hasSelection()
     --- The most common condition for a command to fail. Used in registering commands a ton.
-    return WE.Selection and #WE.Selection > 0
+    return WE.selection and #WE.selection > 0
 end
 
 function WE.hasNBTSupport()
@@ -971,7 +972,7 @@ local function registerCommands()
         firstPos = firstPos == nil and false or firstPos
         if #WE.normalArgs == 1 then
             WE.pos(tonumber(WE.normalArgs[1]))
-        elseif WE.Selection.type == "cuboid" or WE.Selection.type == "ellipse" then
+        elseif WE.selection.type == "cuboid" or WE.selection.type == "ellipse" then
             firstPos = not firstPos
             WE.pos(tonumber(firstPos and 1 or 2))
         else
@@ -988,7 +989,7 @@ local function registerCommands()
         firstPos = firstPos == nil and false or firstPos
         if #WE.normalArgs == 1 then
             hpos(tonumber(WE.normalArgs[1]))
-        elseif WE.Selection.type == "cuboid" or WE.Selection.type == "ellipse" then
+        elseif WE.selection.type == "cuboid" or WE.selection.type == "ellipse" then
             firstPos = not firstPos
             hpos(tonumber(firstPos and 1 or 2))
         else
@@ -1002,31 +1003,31 @@ local function registerCommands()
         hpos(2)
     end, nil, nil, "Selects the second position using the block the player is looking at.", "hpos2 (Takes no arguments)")
     WE.registerCommand("expand", function()
-        if WE.plugins[WE.Selection.type] then
-            WE.plugins[WE.Selection.type].expand()
+        if WE.plugins[WE.selection.type] then
+            WE.plugins[WE.selection.type].expand()
         else
-            WE.sendChat(("Expand not implemented for selection mode %s. This is a bug."):format(WE.Selection.type))
+            WE.sendChat(("Expand not implemented for selection mode %s. This is a bug."):format(WE.selection.type))
         end
-    end, WE.hasSelection, missingPos, "Expands the selection in the given direction, or in the direction the player is looking if not specified.", "expand (amount) [direction] (Direction defaults to \"self\")")
+    end, WE.hasSelection, WE.missingPos, "Expands the selection in the given direction, or in the direction the player is looking if not specified.", "expand (amount) [direction] (Direction defaults to \"self\")")
     WE.registerCommand("contract", function()
-        if WE.plugins[WE.Selection.type] then
-            WE.plugins[WE.Selection.type].contract()
+        if WE.plugins[WE.selection.type] then
+            WE.plugins[WE.selection.type].contract()
         else
-            WE.sendChat(("Contract not implemented for selection mode %s. This is a bug."):format(WE.Selection.type))
+            WE.sendChat(("Contract not implemented for selection mode %s. This is a bug."):format(WE.selection.type))
         end
-    end, WE.hasSelection, missingPos, "Contracts the selection in the given direction, or in the direction the player is looking if not specified.", "contract (amount) [direction] (Direction defaults to \"self\")")
+    end, WE.hasSelection, WE.missingPos, "Contracts the selection in the given direction, or in the direction the player is looking if not specified.", "contract (amount) [direction] (Direction defaults to \"self\")")
     WE.registerCommand("inset", function()
-        if WE.plugins[WE.Selection.type] then
-            WE.plugins[WE.Selection.type].inset()
+        if WE.plugins[WE.selection.type] then
+            WE.plugins[WE.selection.type].inset()
         else
-            WE.sendChat(("Inset not implemented for selection mode %s."):format(WE.Selection.type))
+            WE.sendChat(("Inset not implemented for selection mode %s."):format(WE.selection.type))
         end
     end, nil, nil, "Shrinks the selection by one block in all directions.", "inset (amount)")
     WE.registerCommand("outset", function()
-        if WE.plugins[WE.Selection.type] then
-            WE.plugins[WE.Selection.type].outset()
+        if WE.plugins[WE.selection.type] then
+            WE.plugins[WE.selection.type].outset()
         else
-            WE.sendChat(("Outset not implemented for selection mode %s."):format(WE.Selection.type))
+            WE.sendChat(("Outset not implemented for selection mode %s."):format(WE.selection.type))
         end
     end, nil, nil, "Expand the selection by one block in all directions.", "outset (amount)")
     WE.registerCommand({ "terminate", "exit" }, function()
@@ -1049,7 +1050,7 @@ local function registerCommands()
         io.write "Type your command:\n> "
     end, nil, nil, "Clears the screen.", "clear (Takes no arguments)")
     WE.registerCommand("exportvar", function()
-        exportVar(WE.normalArgs[1], WE.ConfigFolder .. "vars/" .. WE.normalArgs[1], WE.longSwitches.silent, WE.sendChat, true)
+        exportVar(WE.normalArgs[1], WE.configFolder .. "vars/" .. WE.normalArgs[1], WE.longSwitches.silent, WE.sendChat, true)
     end, nil, nil, "A debug command which exports the given variable to a file. table indices (string only) may be separated by dots.", "exportVar (variable name/tablename.index1.index2...)")
 end
 
@@ -1082,26 +1083,26 @@ local function parseCmdArgs()
     local cfgpath = shortSwitches.cp or shortSwitches.cfgpath
     if cfgfolder then
         --Change the folder in which the config is stored.
-        WE.ConfigFolder = cfgfolder
+        WE.configFolder = cfgfolder
     end
     if cfgapipath then
         --Change the path to ConfigAPI
-        ConfigAPIPath = cfgapipath
+        configAPIPath = cfgapipath
     end
     if cfgpath then
         --Change the name of the config
-        ConfigPath = cfgpath
+        configPath = cfgpath
     end
     return normalArgs, namedArgs, shortSwitches, longSwitches
 end
 
 local function parseConfig()
-    WE.ConfigFolder = type(WE.ConfigFolder) == "string" and WE.ConfigFolder or "WE/"
-    ConfigPath = ConfigPath or WE.ConfigFolder .. "Config.ini"
-    ConfigAPIPath = ConfigAPIPath or "NewConfigAPI"
-    fs.makeDir(WE.ConfigFolder)
-    WE.cfg = loadPlugin(WE.ConfigFolder .. ConfigAPIPath)
-    WE.cfg.read(ConfigPath, [[
+    WE.configFolder = type(WE.configFolder) == "string" and WE.configFolder or "WE/"
+    configPath = configPath or WE.configFolder .. "Config.ini"
+    configAPIPath = configAPIPath or "NewConfigAPI"
+    fs.makeDir(WE.configFolder)
+    WE.cfg = loadPlugin(WE.configFolder .. configAPIPath)
+    WE.cfg.read(configPath, [[
 [FileLocations]
 ; Where in the WorldEdit folder the plugins are located.
 PluginPath=Plugins
@@ -1115,7 +1116,7 @@ IDPath=trustedIDs
 TaskPath=Tasks
 [SillyOptions]
 ; Whether the blocks should be set in order, or randomly.
-RandomSetOrder=false
+randomSetOrder=false
     ]])
     if not WE.cfg.hasValue("FileLocations", "PluginPath") then
         WE.sendChat "PluginPath does not exist! Generating config option..."
@@ -1142,20 +1143,20 @@ RandomSetOrder=false
         WE.cfg.add("FileLocations", "TaskPath", "Tasks")
         WE.cfg.addComment("FileLocations", "TaskPath", "Where in the WorldEdit folder Tasks will be stored.")
     end
-    if not WE.cfg.hasValue("SillyOptions", "RandomSetOrder") then
-        WE.sendChat "RandomSetOrder does not exist! Generating config option..."
-        WE.cfg.add("SillyOptions", "RandomSetOrder", false)
-        WE.cfg.addComment("SillyOptions", "RandomSetOrder", "Whether the blocks should be set in order, or randomly.")
+    if not WE.cfg.hasValue("SillyOptions", "randomSetOrder") then
+        WE.sendChat "randomSetOrder does not exist! Generating config option..."
+        WE.cfg.add("SillyOptions", "randomSetOrder", false)
+        WE.cfg.addComment("SillyOptions", "randomSetOrder", "Whether the blocks should be set in order, or randomly.")
     end
-    WE.cfg.write(ConfigPath)
+    WE.cfg.write(configPath)
     --Set the paths based on the config
-    WE.ClipboardPath = WE.cfg.get("FileLocations", "ClipboardPath")
-    PluginPath = WE.cfg.get("FileLocations", "PluginPath")
-    SelectionPath = WE.cfg.get("FileLocations", "SelectionPath")
-    IDPath = WE.cfg.get("FileLocations", "IDPath")
-    TaskPath = WE.cfg.get("FileLocations", "TaskPath")
-    WE.RandomSetOrder = WE.cfg.get("SillyOptions", "RandomSetOrder")
-    fs.makeDir(WE.ConfigFolder .. PluginPath)
+    WE.clipboardPath = WE.cfg.get("FileLocations", "ClipboardPath")
+    pluginPath = WE.cfg.get("FileLocations", "PluginPath")
+    selectionPath = WE.cfg.get("FileLocations", "SelectionPath")
+    idPath = WE.cfg.get("FileLocations", "IDPath")
+    taskPath = WE.cfg.get("FileLocations", "TaskPath")
+    WE.randomSetOrder = WE.cfg.get("SillyOptions", "randomSetOrder")
+    fs.makeDir(WE.configFolder .. pluginPath)
 end
 
 local function init()
@@ -1166,14 +1167,14 @@ local function init()
     parseCmdArgs() --Check any arguments passed through the command line
     parseConfig() --Read the config file and get the values from it
     WE.blockBlacklist = { 0, "minecraft:air" } --Blocks that should be ignored in hpos.
-    WE.Direction = "" --The direction the player is looking in.
-    WE.Selection = { type = "cuboid" } --Default selection type
+    WE.direction = "" --The direction the player is looking in.
+    WE.selection = { type = "cuboid" } --Default selection type
     loadPlugins()
     resetPos() --Set up the pos table (using a metatable so it can store the positions and be called as a function!)
     readSelection() --Read the previous selection from file, if it doesn't exist.
-    WE.trustedIDs = WE.readIDs() --Check which WE.IDs are trusted for rednet input from file
+    WE.trustedIDs = WE.readIDs() --Check which WE.ids are trusted for rednet input from file
     registerCommands() --Register all of the commands that are allowed to run.
-    loadPlugins(WE.ConfigFolder .. TaskPath, WE.tasks)
+    loadPlugins(WE.configFolder .. taskPath, WE.tasks)
     WE.taskFcts = {}
     for _, v in pairs(WE.tasks) do
         WE.taskFcts[#WE.taskFcts+1] = v[1]
@@ -1197,11 +1198,11 @@ local function main()
             term.setCursorPos(1, 1)
             return
         end
-        WE.username, WE.OriginalMessage = WE.getCommand() --Get the command from "chat"
+        WE.username, WE.originalMessage = WE.getCommand() --Get the command from "chat"
         WE.username = WE.username or WE.getPlayerName() --If the username is nil, get the closest player
         pl = p and p.getPlayerByName(WE.username) --Get the player object if using the Adventure Map Interface
         ent = pl and pl.asEntity() --Get the player object as an entity if using the Adventure Map Interface
-        WE.message = WE.OriginalMessage:lower() --Make it case-insensitive, but keep the original just in case it's needed.
+        WE.message = WE.originalMessage:lower() --Make it case-insensitive, but keep the original just in case it's needed.
         parallel.waitForAny(main, WE.runCommands) --Run main again, so that commands can be entered while it waits for the current one to finish.
     end
 end

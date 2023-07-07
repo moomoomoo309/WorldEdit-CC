@@ -27,11 +27,11 @@ local function split(line)
     return line:sub(1, equalssign), line:sub(equalssign + 2)
 end
 
-function Trim(s)
+function trim(s)
     return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
 
-local function RemoveQuotes(s)
+local function removeQuotes(s)
     if s:byte(1) == ("\""):byte() and s:byte(#s) == ("\""):byte() then
         return s:sub(2, -2)
     end
@@ -141,7 +141,7 @@ function openConfigFile(path)
             break
         end
         currentline = trimComments(currentline)
-        if Trim(currentline) ~= "" then
+        if trim(currentline) ~= "" then
             if currentline:byte(1) == ("["):byte() then
                 if currentsectionname ~= nil then
                     config.content[currentsectionname] = currentsection
@@ -153,15 +153,15 @@ function openConfigFile(path)
                 currentsectionname = currentline:sub(2, -2)
             else
                 local key, value = split(currentline)
-                if Trim(key) ~= nil and Trim(value) ~= nil then
-                    local x = Trim(value)
+                if trim(key) ~= nil and trim(value) ~= nil then
+                    local x = trim(value)
                     if tonumber(x) then
                         x = tonumber(x)
                     else
-                        x = RemoveQuotes(x)
+                        x = removeQuotes(x)
                     end
-                    if x ~= nil and tostring(Trim(key)) ~= nil then
-                        currentsection[Trim(key)] = x
+                    if x ~= nil and tostring(trim(key)) ~= nil then
+                        currentsection[trim(key)] = x
                     end
                 end
             end

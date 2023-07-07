@@ -1,4 +1,4 @@
-WE.IDs = {
+WE.ids = {
     ["minecraft:bed"] = 26,
     ["minecraft:unlit_redstone_torch"] = 75,
     ["minecraft:mob_spawner"] = 52,

@@ -8,13 +8,13 @@ function argError(...)
 end
 
 --- Returns if all of the given values are truthy.
-function all(...)
-    return select("#", ...) == 1 and ((...) and true or false) or ((...) and all(select(2, ...)))
+function all(a, ...)
+    return not (...) and (a and true or false) or (a and all(...))
 end
 
 --- Returns if any of the given values are truthy.
-function any(...)
-    return ((...) and true or false) or any(select(2, ...))
+function any(a, ...)
+    return (a and true or false) or any(...)
 end
 
 local function mapIterative(fct, numArgs, ...)
@@ -30,10 +30,10 @@ local function mapIterative(fct, numArgs, ...)
             localArgs[len + 1] = args[i + i2 - 1]
             len = len + 1
         end
-        local len = #returns --Cut down on length lookups more
+        len = #returns --Cut down on length lookups more
         local fctResults = { fct(unpack(localArgs)) }
-        for i = 1, #fctResults do
-            returns[len + 1] = fctResults[i]
+        for j = 1, #fctResults do
+            returns[len + 1] = fctResults[j]
             len = len + 1
         end
     end
@@ -68,17 +68,20 @@ local function mapRecursive(fct, numArgs, ...)
         results[#results + 1] = { fct(unpack(tbl)) }
         return #args >= numArgs and innerWrap(fct, numArgs, results, args) or results
     end
-
-    local tbl = innerWrap(fct, numArgs, results, { ... })
-    local tblLen = #tbl
-    for i = 1, tblLen / 2 do
-        --Reverse the table, since inserting it backwards is n(n-i) iterations, but reversing it is n/2.
-        tbl[i], tbl[tblLen - i + 1] = tbl[tblLen - i + 1], tbl[i] --Swap the first half of the elements with the last half
-    end
-    return unpack(tbl)
 end
 
-map = mapRecursive --mapRecursive is faster, unsurprisingly, as a good recursion implementation often is.
+
+local function _map(fct, ...)
+    return mapIterative(fct, (getFunctionInfo(fct)), ...)
+end
+
+map = _map
+
+function wrap(fct, numArgs)
+    return function(...)
+        return map(fct, numArgs, ...)
+    end
+end
 
 local oldmath = {}
 oldmath.floor = math.floor
@@ -205,9 +208,9 @@ end
 
 tablex = {}
 --- Returns the index of element in tbl, or nil if no such index exists.
---- @return the indices as a table as {ind1,ind2,...,indN} for tbl[ind1][ind2]...[indN].
+--- @return table the indices as a table as {ind1,ind2,...,indN} for tbl[ind1][ind2]...[indN].
 function tablex.indexOf(tbl, element)
-    local indices, indicesLen = {}, 1
+    local tempIndices, tempIndicesLen = {}, 1
     local function searchTbl(tbl, element)
         for k, v in pairs(tbl) do
             if type(v) == "table" then
@@ -215,16 +218,16 @@ function tablex.indexOf(tbl, element)
                 if index ~= nil then
                     --Inserting it at index 1 is O(n), this is O(1). That results in O(n) total,
                     --rather than O(n^2) to insert it O(n) each time.
-                    indices[indicesLen] = k
-                    indicesLen = indicesLen + 1
-                    return indices
+                    tempIndices[tempIndicesLen] = k
+                    tempIndicesLen = tempIndicesLen + 1
+                    return tempIndices
                 else
                     return nil
                 end
             elseif v == element then
-                indices[indicesLen] = k
-                indicesLen = indicesLen + 1
-                return indices
+                tempIndices[tempIndicesLen] = k
+                tempIndicesLen = tempIndicesLen + 1
+                return tempIndices
             end
         end
         return nil
@@ -241,7 +244,7 @@ function tablex.indexOf(tbl, element)
 
             return indices
         elseif v == element then
-            return k
+            return { k }
         end
     end
 end
@@ -312,17 +315,17 @@ function tablex.flatten(tbl)
 end
 
 --- Flattens a table in-place.
---- @param topTbl The table to flatten. It will be modified.
---- @return The original table, modified to have its contents flattened.
+--- @param topTbl table The table to flatten. It will be modified.
+--- @return table The original table, modified to have its contents flattened.
 function tablex.flattenInPlace(topTbl)
     local originalLen = #topTbl
     local flatLength = 0
 
-    local function recurse(tbl, oldK, oldTbl, topLevel)
+    local function recurse(tbl, oldK, oldTbl)
         oldTbl[oldK] = nil -- Release the parent table's reference to this one, so once you're done, it's GC'd.
         for k, v in pairs(tbl) do
             if type(v) == "table" then
-                recurse(v, k, tbl, false)
+                recurse(v, k, tbl)
             else
                 flatLength = flatLength + 1
                 topTbl[flatLength] = v
@@ -335,7 +338,7 @@ function tablex.flattenInPlace(topTbl)
             break
         end
         if type(v) == "table" then
-            recurse(v, k, topTbl, true)
+            recurse(v, k, topTbl)
         else
             flatLength = flatLength + 1
             if k ~= flatLength then
@@ -362,8 +365,8 @@ end
 --- This is what you would give the results from table.indexOf() to.
 --- The first argument should be the table being accessed, the following arguments should be the indices in order.
 --- Example use: To access tbl.bacon[a][5].c, use "tablex.get(tbl,unpack{"bacon",a,5,"c"})" or "tablex.get(tbl,"bacon",a,5,"c")"
-function tablex.get(...)
-    return select("#", ...) >= 3 and tablex.get((...)[select(2, ...)], select(3, ...)) or (...)[select(2, ...)]
+function tablex.get(tbl, key, ...)
+    return (...) and tablex.get(tbl[key], ...) or tbl[key]
 end
 
 --Modified from penlight. https://github.com/stevedonovan/Penlight/blob/master/lua/pl/tablex.lua
@@ -448,13 +451,12 @@ end
 --- useIPairs makes it like ipairs(),
 --- tblMutable allows it to work on mutable tables.
 local function randNext(tbl, useIPairs, tblMutable)
-    local tbl = tbl
     if tblMutable then
         -- If the table is mutable, copy it to avoid modification.
         tbl = tablex.copy(tbl)
     end
     return coroutine.wrap(function()
-        local key, value
+        local key
         local keys = {}
         local keysLen = 0
         for k in (useIPairs and ipairs or pairs)(tbl) do
@@ -462,7 +464,7 @@ local function randNext(tbl, useIPairs, tblMutable)
             keysLen = keysLen + 1
             keys[keysLen] = k
         end
-        for i = 1, keysLen do
+        for _ = 1, keysLen do
             local randIndex = math.random(1, keysLen) --Grab a random key from the remaining keys.
             keys[randIndex], keys[keysLen] = keys[keysLen], keys[randIndex] --Swap the random and last element
             key = keys[keysLen] --Grab the element before it's removed
